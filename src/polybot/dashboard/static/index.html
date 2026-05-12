@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Polybot Dashboard</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Polymarket BTC Bot</p>
+          <h1>Polybot Dashboard</h1>
+        </div>
+        <div class="status-pill" id="bot-status">ready</div>
+      </header>
+
+      <section class="metrics" aria-label="Bot metrics">
+        <article class="metric">
+          <span>Status</span>
+          <strong id="status-value">ready</strong>
+        </article>
+        <article class="metric">
+          <span>Today P/L</span>
+          <strong id="pnl-value">$0.00</strong>
+        </article>
+      </section>
+
+      <section class="grid">
+        <article class="panel">
+          <div class="panel-heading">
+            <h2>Recent Decisions</h2>
+            <span id="decision-count">0</span>
+          </div>
+          <ul class="list" id="decisions"></ul>
+        </article>
+
+        <article class="panel">
+          <div class="panel-heading">
+            <h2>Recent Events</h2>
+            <span id="event-count">0</span>
+          </div>
+          <ul class="list" id="events"></ul>
+        </article>
+      </section>
+    </main>
+    <script src="/static/app.js" defer></script>
+  </body>
+</html>

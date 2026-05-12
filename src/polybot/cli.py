@@ -4,11 +4,14 @@ import tomllib
 
 from pydantic import ValidationError
 import typer
+import uvicorn
 
 from polybot.bot import BotRunner
 from polybot.config import BotConfig
 from polybot.config import RuntimeSettings, load_bot_config
+from polybot.dashboard import create_dashboard_app
 from polybot.execution.paper import PaperExecutionEngine
+from polybot.state_store import StateStore
 
 app = typer.Typer(help="Polymarket BTC event trading bot")
 
@@ -54,5 +57,13 @@ async def _run_one_cycle(cfg: BotConfig, store_path: str) -> None:
 
 
 @app.command()
-def dashboard() -> None:
-    typer.echo("Dashboard runner will be enabled after dashboard tasks are implemented.")
+def dashboard(config: Path | None = None) -> None:
+    settings = RuntimeSettings()
+    cfg = _load_config_or_exit(config or settings.config)
+    store = StateStore(settings.db_path)
+    store.initialize()
+    uvicorn.run(
+        create_dashboard_app(store),
+        host=cfg.bot.dashboard_host,
+        port=cfg.bot.dashboard_port,
+    )
