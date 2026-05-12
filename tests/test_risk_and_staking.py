@@ -173,6 +173,14 @@ def test_fractional_kelly_returns_zero_when_price_is_not_positive(target_price):
     assert calculate_stake(config, decision, max_stake=10.0) == 0.0
 
 
+@pytest.mark.parametrize("target_price", [1.0, 1.10])
+def test_fractional_kelly_returns_zero_when_price_is_at_or_above_one(target_price):
+    config = StakingSection(mode="fractional_kelly", kelly_fraction=0.5)
+    decision = _decision(target_price=target_price, estimated_probability=0.80)
+
+    assert calculate_stake(config, decision, max_stake=10.0) == 0.0
+
+
 @pytest.mark.parametrize(
     ("confidence", "expected"),
     [
