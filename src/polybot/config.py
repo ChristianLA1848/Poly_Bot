@@ -1,7 +1,8 @@
 from pathlib import Path
 import tomllib
+from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -14,49 +15,57 @@ class RuntimeSettings(BaseSettings):
 
 
 class BotSection(BaseModel):
-    mode: str = "paper"
-    cycle_seconds: float = 1.0
+    mode: Literal["paper", "live"] = "paper"
+    cycle_seconds: float = Field(default=1.0, gt=0.0)
     dashboard_host: str = "127.0.0.1"
-    dashboard_port: int = 8787
+    dashboard_port: int = Field(default=8787, ge=1, le=65535)
 
 
 class RiskSection(BaseModel):
-    max_stake: float
-    max_daily_loss: float
-    max_spread: float
-    min_liquidity: float
-    min_edge: float
-    max_feed_age_ms: int
-    max_feed_deviation_bps: int
-    max_open_positions: int = 1
-    max_open_orders: int = 2
+    max_stake: float = Field(gt=0.0)
+    max_daily_loss: float = Field(gt=0.0)
+    max_spread: float = Field(ge=0.0)
+    min_liquidity: float = Field(gt=0.0)
+    min_edge: float = Field(ge=0.0)
+    max_feed_age_ms: int = Field(gt=0)
+    max_feed_deviation_bps: int = Field(ge=0)
+    max_open_positions: int = Field(default=1, ge=0)
+    max_open_orders: int = Field(default=2, ge=0)
 
 
 class StrategySection(BaseModel):
-    name: str = "baseline_momentum"
+    name: Literal["baseline_momentum", "late_window"] = "baseline_momentum"
 
 
 class StakingSection(BaseModel):
-    mode: str = "fixed"
-    fixed_stake: float = 5.0
+    mode: Literal["fixed", "fractional_kelly", "confidence_tiering"] = "fixed"
+    fixed_stake: float = Field(default=5.0, ge=0.0)
     kelly_fraction: float = Field(default=0.25, ge=0.0, le=1.0)
-    low_confidence_stake: float = 2.0
-    medium_confidence_stake: float = 5.0
-    high_confidence_stake: float = 10.0
+    low_confidence_stake: float = Field(default=2.0, ge=0.0)
+    medium_confidence_stake: float = Field(default=5.0, ge=0.0)
+    high_confidence_stake: float = Field(default=10.0, ge=0.0)
 
 
 class ExitSection(BaseModel):
-    mode: str = "hold_to_resolution"
-    profit_target: float = 0.08
-    stop_loss: float = 0.05
+    mode: Literal["hold_to_resolution", "managed_exit"] = "hold_to_resolution"
+    profit_target: float = Field(default=0.08, ge=0.0)
+    stop_loss: float = Field(default=0.05, ge=0.0)
 
 
 class LateWindowSection(BaseModel):
-    min_seconds_remaining: int = 20
-    max_seconds_remaining: int = 60
-    min_expected_return: float = 0.01
-    max_expected_return: float = 0.10
-    min_confidence: float = 0.80
+    min_seconds_remaining: int = Field(default=20, ge=0)
+    max_seconds_remaining: int = Field(default=60, ge=0)
+    min_expected_return: float = Field(default=0.01, ge=0.0)
+    max_expected_return: float = Field(default=0.10, ge=0.0)
+    min_confidence: float = Field(default=0.80, ge=0.0, le=1.0)
+
+    @model_validator(mode="after")
+    def validate_ranges(self) -> "LateWindowSection":
+        if self.max_seconds_remaining < self.min_seconds_remaining:
+            raise ValueError("max_seconds_remaining must be >= min_seconds_remaining")
+        if self.max_expected_return < self.min_expected_return:
+            raise ValueError("max_expected_return must be >= min_expected_return")
+        return self
 
 
 class BotConfig(BaseModel):
