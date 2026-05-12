@@ -57,7 +57,7 @@ async def test_paper_cancel_all_returns_cancelled_status():
     assert result == {"mode": "paper", "status": "cancelled"}
 
 
-class RecordingClobClient:
+class KeywordOnlyClobClient:
     def __init__(self) -> None:
         self.orders: list[dict[str, object]] = []
 
@@ -83,8 +83,40 @@ class RecordingClobClient:
 
 
 @pytest.mark.asyncio
-async def test_live_place_order_calls_injected_client_with_buy_order():
-    client = RecordingClobClient()
+async def test_live_place_order_calls_sdk_shaped_client_with_order_args():
+    class SdkShapedClobClient:
+        def __init__(self) -> None:
+            self.order_args: object | None = None
+
+        def create_and_post_order(self, order_args: object) -> dict[str, object]:
+            self.order_args = order_args
+            return {"order_id": "live-order-1"}
+
+    client = SdkShapedClobClient()
+    engine = LiveExecutionEngine(client)
+
+    result = await engine.place_order(_decision(target_price=0.30), stake=10.0)
+
+    assert client.order_args is not None
+    assert getattr(client.order_args, "token_id") == "token-up"
+    assert getattr(client.order_args, "price") == 0.30
+    assert getattr(client.order_args, "size") == 33.333333
+    assert getattr(client.order_args, "side") == "BUY"
+    assert result == {
+        "mode": "live",
+        "status": "submitted",
+        "market_id": "0xabc",
+        "token_id": "token-up",
+        "price": 0.30,
+        "stake": 10.0,
+        "shares": 33.333333,
+        "response": {"order_id": "live-order-1"},
+    }
+
+
+@pytest.mark.asyncio
+async def test_live_place_order_keeps_keyword_fallback_for_simple_clients():
+    client = KeywordOnlyClobClient()
     engine = LiveExecutionEngine(client)
 
     result = await engine.place_order(_decision(target_price=0.30), stake=10.0)
@@ -97,22 +129,41 @@ async def test_live_place_order_calls_injected_client_with_buy_order():
             "side": "BUY",
         }
     ]
+    assert result["shares"] == 33.333333
+
+
+@pytest.mark.asyncio
+async def test_live_place_order_supports_async_client_method():
+    class AsyncClobClient:
+        def __init__(self) -> None:
+            self.order_args: object | None = None
+
+        async def create_and_post_order(self, order_args: object) -> dict[str, object]:
+            self.order_args = order_args
+            return {"order_id": "async-order-1"}
+
+    client = AsyncClobClient()
+    engine = LiveExecutionEngine(client)
+
+    result = await engine.place_order(_decision(target_price=0.40), stake=10.0)
+
+    assert client.order_args is not None
+    assert getattr(client.order_args, "size") == 25.0
     assert result == {
         "mode": "live",
         "status": "submitted",
-        "response": {
-            "order_id": "live-order-1",
-            "token_id": "token-up",
-            "price": 0.30,
-            "size": 33.333333,
-            "side": "BUY",
-        },
+        "market_id": "0xabc",
+        "token_id": "token-up",
+        "price": 0.40,
+        "stake": 10.0,
+        "shares": 25.0,
+        "response": {"order_id": "async-order-1"},
     }
 
 
 @pytest.mark.asyncio
 async def test_live_cancel_all_calls_injected_client():
-    client = RecordingClobClient()
+    client = KeywordOnlyClobClient()
     engine = LiveExecutionEngine(client)
 
     result = await engine.cancel_all()
@@ -122,6 +173,41 @@ async def test_live_cancel_all_calls_injected_client():
         "status": "cancelled",
         "response": {"cancelled": True},
     }
+
+
+@pytest.mark.asyncio
+async def test_live_cancel_all_supports_async_client_method():
+    class AsyncCancelClobClient:
+        async def cancel_all(self) -> dict[str, object]:
+            return {"cancelled": True}
+
+    engine = LiveExecutionEngine(AsyncCancelClobClient())
+
+    result = await engine.cancel_all()
+
+    assert result == {
+        "mode": "live",
+        "status": "cancelled",
+        "response": {"cancelled": True},
+    }
+
+
+@pytest.mark.parametrize("target_price", [0.0, -0.1, 1.0, 1.2])
+@pytest.mark.asyncio
+async def test_live_place_order_rejects_invalid_target_price(target_price: float):
+    engine = LiveExecutionEngine(KeywordOnlyClobClient())
+
+    with pytest.raises(ValueError, match="target_price"):
+        await engine.place_order(_decision(target_price=target_price), stake=10.0)
+
+
+@pytest.mark.parametrize("stake", [0.0, -1.0])
+@pytest.mark.asyncio
+async def test_live_place_order_rejects_invalid_stake(stake: float):
+    engine = LiveExecutionEngine(KeywordOnlyClobClient())
+
+    with pytest.raises(ValueError, match="stake"):
+        await engine.place_order(_decision(target_price=0.50), stake=stake)
 
 
 @pytest.mark.asyncio
