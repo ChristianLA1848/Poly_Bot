@@ -1,0 +1,39 @@
+[bot]
+mode = "paper"
+cycle_seconds = 1.0
+dashboard_host = "127.0.0.1"
+dashboard_port = 8787
+
+[risk]
+max_stake = 10.0
+max_daily_loss = 25.0
+max_spread = 0.04
+min_liquidity = 100.0
+min_edge = 0.03
+max_feed_age_ms = 2500
+max_feed_deviation_bps = 20
+max_open_positions = 1
+max_open_orders = 2
+
+[strategy]
+name = "baseline_momentum"
+
+[staking]
+mode = "fixed"
+fixed_stake = 5.0
+kelly_fraction = 0.25
+low_confidence_stake = 2.0
+medium_confidence_stake = 5.0
+high_confidence_stake = 10.0
+
+[exit]
+mode = "hold_to_resolution"
+profit_target = 0.08
+stop_loss = 0.05
+
+[late_window]
+min_seconds_remaining = 20
+max_seconds_remaining = 60
+min_expected_return = 0.01
+max_expected_return = 0.10
+min_confidence = 0.80
