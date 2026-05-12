@@ -41,9 +41,16 @@ def check_config(config: Path | None = None) -> None:
 def run(config: Path | None = None) -> None:
     settings = RuntimeSettings()
     cfg = _load_config_or_exit(config or settings.config)
-    runner = BotRunner(cfg, execution=PaperExecutionEngine(), store_path=settings.db_path)
-    asyncio.run(runner.run_once())
+    asyncio.run(_run_one_cycle(cfg, settings.db_path))
     typer.echo("Completed one bot cycle.")
+
+
+async def _run_one_cycle(cfg: BotConfig, store_path: str) -> None:
+    runner = BotRunner(cfg, execution=PaperExecutionEngine(), store_path=store_path)
+    try:
+        await runner.run_once()
+    finally:
+        await runner.aclose()
 
 
 @app.command()

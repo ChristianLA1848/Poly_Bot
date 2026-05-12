@@ -1,10 +1,11 @@
 from datetime import UTC, datetime
+from inspect import isawaitable
 from pathlib import Path
 from typing import Any
 
 from polybot.config import BotConfig
 from polybot.market_discovery import MarketDiscovery
-from polybot.models import BotEvent, FeedAggregate, OrderbookSnapshot
+from polybot.models import BotEvent, DecisionAction, FeedAggregate, Market, OrderbookSnapshot
 from polybot.orderbook import OrderbookClient
 from polybot.positions import PositionManager
 from polybot.risk import RiskGate
@@ -33,6 +34,16 @@ class BotRunner:
         self.positions = PositionManager()
         self.reference_start_price = reference_start_price
         self.latest_feed = latest_feed
+
+    async def __aenter__(self) -> "BotRunner":
+        return self
+
+    async def __aexit__(self, *exc_info: object) -> None:
+        await self.aclose()
+
+    async def aclose(self) -> None:
+        await self._close_if_available(self.market_discovery)
+        await self._close_if_available(self.orderbook_client)
 
     async def run_once(self, now: datetime | None = None) -> None:
         now = now or datetime.now(tz=UTC)
@@ -66,6 +77,10 @@ class BotRunner:
         decision = strategy.decide(context)
         self.store.record_decision(decision)
 
+        if self._has_unknown_trade_token(decision.action, decision.token_id, market):
+            self._record_event("error", "strategy returned unknown token", now)
+            return
+
         selected_book = self._selected_book(decision.token_id, market.up_token_id, up_book, down_book)
         risk_result = RiskGate(self.config.risk).evaluate(
             decision,
@@ -97,6 +112,25 @@ class BotRunner:
 
     def _record_event(self, level: str, message: str, created_at: datetime) -> None:
         self.store.record_event(BotEvent(level=level, message=message, created_at=created_at))
+
+    async def _close_if_available(self, client: Any) -> None:
+        close = getattr(client, "aclose", None)
+        if close is None:
+            return
+
+        result = close()
+        if isawaitable(result):
+            await result
+
+    def _has_unknown_trade_token(
+        self,
+        action: DecisionAction,
+        token_id: str,
+        market: Market,
+    ) -> bool:
+        if action not in {DecisionAction.BUY_UP, DecisionAction.BUY_DOWN, DecisionAction.SELL}:
+            return False
+        return token_id not in {market.up_token_id, market.down_token_id}
 
     def _selected_book(
         self,
