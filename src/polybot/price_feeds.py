@@ -9,6 +9,9 @@ def aggregate_prices(
     now_ms: int,
     max_age_ms: int,
 ) -> FeedAggregate:
+    if max_age_ms < 0:
+        raise ValueError("max_age_ms must be non-negative")
+
     created_at = datetime.fromtimestamp(now_ms / 1000, tz=UTC)
 
     if not prices:
@@ -29,7 +32,10 @@ def aggregate_prices(
         abs(price.value - reference_price) / reference_price * 10_000
         for price in prices
     )
-    fresh = all(now_ms - price.timestamp_ms <= max_age_ms for price in prices)
+    fresh = all(
+        0 <= now_ms - price.timestamp_ms <= max_age_ms
+        for price in prices
+    )
 
     return FeedAggregate(
         reference_price=reference_price,
