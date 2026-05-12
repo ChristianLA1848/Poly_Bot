@@ -9,10 +9,24 @@ from polybot.models import Market
 GAMMA_BASE_URL = "https://gamma-api.polymarket.com"
 
 
-def _loads_list(value: str | list[str]) -> list[str]:
+def _loads_list(value: Any, *, field: str) -> list[str]:
     if isinstance(value, list):
-        return value
-    return list(json.loads(value))
+        decoded = value
+    elif isinstance(value, str):
+        try:
+            decoded = json.loads(value)
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"{field} must be valid JSON") from exc
+    else:
+        raise ValueError(f"{field} must be a JSON string or list")
+
+    if not isinstance(decoded, list):
+        raise ValueError(f"{field} must decode to a list")
+
+    if not all(isinstance(item, str) for item in decoded):
+        raise ValueError(f"{field} must contain only strings")
+
+    return decoded
 
 
 def _parse_dt(value: str) -> datetime:
@@ -20,11 +34,15 @@ def _parse_dt(value: str) -> datetime:
 
 
 def parse_btc_market(payload: dict[str, Any]) -> Market:
-    outcomes = _loads_list(payload["outcomes"])
-    token_ids = _loads_list(payload["clobTokenIds"])
-    token_by_outcome = {
-        outcome.lower(): token for outcome, token in zip(outcomes, token_ids, strict=True)
-    }
+    outcomes = [outcome.strip().lower() for outcome in _loads_list(payload["outcomes"], field="outcomes")]
+    token_ids = _loads_list(payload["clobTokenIds"], field="clobTokenIds")
+
+    if len(outcomes) != len(token_ids):
+        raise ValueError("outcomes and clobTokenIds length mismatch")
+
+    token_by_outcome = dict(zip(outcomes, token_ids, strict=True))
+    if "up" not in token_by_outcome or "down" not in token_by_outcome:
+        raise ValueError("outcomes must include Up and Down")
 
     return Market(
         market_id=payload["conditionId"],
@@ -42,7 +60,18 @@ def parse_btc_market(payload: dict[str, Any]) -> Market:
 
 class MarketDiscovery:
     def __init__(self, client: httpx.AsyncClient | None = None):
+        self._owns_client = client is None
         self.client = client or httpx.AsyncClient(base_url=GAMMA_BASE_URL, timeout=10.0)
+
+    async def __aenter__(self) -> "MarketDiscovery":
+        return self
+
+    async def __aexit__(self, *exc_info: object) -> None:
+        await self.aclose()
+
+    async def aclose(self) -> None:
+        if self._owns_client:
+            await self.client.aclose()
 
     async def find_btc_5m_market(self) -> Market | None:
         response = await self.client.get(
