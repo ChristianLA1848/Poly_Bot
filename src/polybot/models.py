@@ -41,10 +41,13 @@ class FeedPrice:
 @dataclass(frozen=True)
 class FeedAggregate:
     reference_price: float
-    prices: list[FeedPrice]
+    prices: tuple[FeedPrice, ...] | list[FeedPrice]
     max_deviation_bps: float
     fresh: bool
     created_at: datetime
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "prices", tuple(self.prices))
 
 
 @dataclass(frozen=True)

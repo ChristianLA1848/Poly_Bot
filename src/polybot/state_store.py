@@ -56,12 +56,13 @@ class StateStore:
             )
 
     def dashboard_snapshot(self) -> dict[str, Any]:
+        """Return dashboard rows by event time, newest first, with id as tie-breaker."""
         with self.connect() as conn:
             decisions = conn.execute(
-                "SELECT payload FROM decisions ORDER BY id DESC LIMIT 20"
+                "SELECT payload FROM decisions ORDER BY created_at DESC, id DESC LIMIT 20"
             ).fetchall()
             events = conn.execute(
-                "SELECT created_at, level, message FROM events ORDER BY id DESC LIMIT 50"
+                "SELECT created_at, level, message FROM events ORDER BY created_at DESC, id DESC LIMIT 50"
             ).fetchall()
 
         return {
