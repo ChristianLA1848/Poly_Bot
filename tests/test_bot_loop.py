@@ -1,4 +1,5 @@
 from datetime import UTC, datetime, timedelta
+import json
 
 import pytest
 
@@ -204,6 +205,66 @@ async def test_bot_runner_records_event_when_risk_gate_blocks(tmp_path):
     assert runner.store.dashboard_snapshot()["recent_events"][0]["message"] == (
         "risk gate blocked: spread too high"
     )
+
+
+@pytest.mark.asyncio
+async def test_bot_runner_writes_audit_records_for_order_path(tmp_path):
+    execution = FakeExecution()
+    audit_path = tmp_path / "audit.jsonl"
+    runner = BotRunner(
+        config=_config(),
+        market_discovery=FakeMarketDiscovery(),
+        orderbook_client=FakeOrderbookClient(),
+        execution=execution,
+        store_path=tmp_path / "bot.sqlite3",
+        reference_start_price=100.0,
+        latest_feed=_feed(),
+        audit_log_path=audit_path,
+    )
+
+    await runner.run_once(now=datetime(2026, 5, 12, 21, 3, tzinfo=UTC))
+
+    records = [json.loads(line) for line in audit_path.read_text(encoding="utf-8").splitlines()]
+    assert [record["type"] for record in records] == ["decision", "order_result"]
+    assert records[0]["payload"]["decision"]["action"] == "BUY_UP"
+    assert records[1]["payload"]["result"]["status"] == "filled"
+    assert records[1]["payload"]["stake"] == 5
+
+
+@pytest.mark.asyncio
+async def test_bot_runner_writes_audit_records_for_risk_block_and_warning(tmp_path):
+    audit_path = tmp_path / "audit.jsonl"
+    blocked_runner = BotRunner(
+        config=_config(max_spread=0.001),
+        market_discovery=FakeMarketDiscovery(),
+        orderbook_client=FakeOrderbookClient(spread=0.02),
+        execution=FakeExecution(),
+        store_path=tmp_path / "blocked.sqlite3",
+        reference_start_price=100.0,
+        latest_feed=_feed(),
+        audit_log_path=audit_path,
+    )
+    warning_runner = BotRunner(
+        config=_config(),
+        market_discovery=FakeMarketDiscovery(),
+        orderbook_client=FakeOrderbookClient(),
+        execution=FakeExecution(),
+        store_path=tmp_path / "warning.sqlite3",
+        audit_log_path=audit_path,
+    )
+
+    await blocked_runner.run_once(now=datetime(2026, 5, 12, 21, 3, tzinfo=UTC))
+    await warning_runner.run_once(now=datetime(2026, 5, 12, 21, 4, tzinfo=UTC))
+
+    records = [json.loads(line) for line in audit_path.read_text(encoding="utf-8").splitlines()]
+    assert [record["type"] for record in records] == [
+        "decision",
+        "risk_block",
+        "event",
+    ]
+    assert records[1]["payload"]["reason"] == "spread too high"
+    assert records[2]["payload"]["event"]["level"] == "warning"
+    assert records[2]["payload"]["event"]["message"] == "no feed aggregate available"
 
 
 @pytest.mark.asyncio

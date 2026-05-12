@@ -3,6 +3,7 @@ from inspect import isawaitable
 from pathlib import Path
 from typing import Any
 
+from polybot.audit_log import AuditLog
 from polybot.config import BotConfig
 from polybot.market_discovery import MarketDiscovery
 from polybot.models import BotEvent, DecisionAction, FeedAggregate, Market, OrderbookSnapshot
@@ -24,6 +25,7 @@ class BotRunner:
         store_path: str | Path = "./data/polybot.sqlite3",
         reference_start_price: float | None = None,
         latest_feed: FeedAggregate | None = None,
+        audit_log_path: str | Path | None = None,
     ) -> None:
         self.config = config
         self.market_discovery = market_discovery or MarketDiscovery()
@@ -34,6 +36,7 @@ class BotRunner:
         self.positions = PositionManager()
         self.reference_start_price = reference_start_price
         self.latest_feed = latest_feed
+        self.audit_log = AuditLog(audit_log_path) if audit_log_path is not None else None
 
     async def __aenter__(self) -> "BotRunner":
         return self
@@ -76,6 +79,15 @@ class BotRunner:
         )
         decision = strategy.decide(context)
         self.store.record_decision(decision)
+        self._append_audit(
+            "decision",
+            {
+                "decision": decision,
+                "feed": self.latest_feed,
+                "market": market,
+                "created_at": now,
+            },
+        )
 
         if self._has_unknown_trade_token(decision.action, decision.token_id, market):
             self._record_event("error", "strategy returned unknown token", now)
@@ -91,6 +103,16 @@ class BotRunner:
             open_orders=0,
         )
         if not risk_result.accepted:
+            self._append_audit(
+                "risk_block",
+                {
+                    "reason": risk_result.reason,
+                    "decision": decision,
+                    "feed": self.latest_feed,
+                    "book": selected_book,
+                    "created_at": now,
+                },
+            )
             self._record_event("info", f"risk gate blocked: {risk_result.reason}", now)
             return
 
@@ -100,6 +122,15 @@ class BotRunner:
             return
 
         result = await self.execution.place_order(decision, stake)
+        self._append_audit(
+            "order_result",
+            {
+                "decision": decision,
+                "stake": stake,
+                "result": result,
+                "created_at": now,
+            },
+        )
         if result.get("status") == "filled":
             self.positions.record_fill(
                 result["market_id"],
@@ -111,7 +142,15 @@ class BotRunner:
         self._record_event("info", f"order result: {result.get('status')}", now)
 
     def _record_event(self, level: str, message: str, created_at: datetime) -> None:
-        self.store.record_event(BotEvent(level=level, message=message, created_at=created_at))
+        event = BotEvent(level=level, message=message, created_at=created_at)
+        self.store.record_event(event)
+        if level in {"warning", "error"}:
+            self._append_audit("event", {"event": event})
+
+    def _append_audit(self, event_type: str, payload: dict[str, Any]) -> None:
+        if self.audit_log is None:
+            return
+        self.audit_log.append(event_type, payload)
 
     async def _close_if_available(self, client: Any) -> None:
         close = getattr(client, "aclose", None)

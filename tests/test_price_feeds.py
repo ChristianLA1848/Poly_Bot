@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 
 import pytest
 
+from polybot import price_feeds
 from polybot.models import FeedPrice
 from polybot.price_feeds import aggregate_prices
 
@@ -85,3 +86,41 @@ def test_aggregate_prices_rejects_non_positive_values(value):
 
     with pytest.raises(ValueError, match="price values must be positive"):
         aggregate_prices(prices, now_ms=1_001_000, max_age_ms=2_500)
+
+
+class FakeResponse:
+    def __init__(self, payload):
+        self.payload = payload
+
+    def raise_for_status(self):
+        return None
+
+    def json(self):
+        return self.payload
+
+
+class FakeClient:
+    def __init__(self):
+        self.urls = []
+
+    async def get(self, url):
+        self.urls.append(url)
+        if "binance" in url:
+            return FakeResponse({"price": "100.00"})
+        return FakeResponse({"data": {"amount": "100.20"}})
+
+
+@pytest.mark.asyncio
+async def test_fetch_btc_feed_aggregate_uses_public_rest_prices(monkeypatch):
+    fake_client = FakeClient()
+    monkeypatch.setattr("polybot.price_feeds.time.time", lambda: 1_778_520_000.0)
+
+    agg = await price_feeds.fetch_btc_feed_aggregate(max_age_ms=2_500, client=fake_client)
+
+    assert fake_client.urls == [
+        "https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT",
+        "https://api.coinbase.com/v2/prices/BTC-USD/spot",
+    ]
+    assert [price.source for price in agg.prices] == ["binance", "coinbase"]
+    assert agg.reference_price == 100.1
+    assert agg.fresh is True
