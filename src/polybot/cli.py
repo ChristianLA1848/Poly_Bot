@@ -1,11 +1,14 @@
+import asyncio
 from pathlib import Path
 import tomllib
 
 from pydantic import ValidationError
 import typer
 
+from polybot.bot import BotRunner
 from polybot.config import BotConfig
 from polybot.config import RuntimeSettings, load_bot_config
+from polybot.execution.paper import PaperExecutionEngine
 
 app = typer.Typer(help="Polymarket BTC event trading bot")
 
@@ -35,8 +38,12 @@ def check_config(config: Path | None = None) -> None:
 
 
 @app.command()
-def run() -> None:
-    typer.echo("Bot runner will be enabled after core tasks are implemented.")
+def run(config: Path | None = None) -> None:
+    settings = RuntimeSettings()
+    cfg = _load_config_or_exit(config or settings.config)
+    runner = BotRunner(cfg, execution=PaperExecutionEngine(), store_path=settings.db_path)
+    asyncio.run(runner.run_once())
+    typer.echo("Completed one bot cycle.")
 
 
 @app.command()
