@@ -31,6 +31,24 @@ def test_unrealized_pnl_sums_multiple_positions():
     assert manager.open_positions_count() == 2
 
 
+def test_unrealized_pnl_rounds_to_six_decimals():
+    manager = PositionManager()
+    manager.record_fill("market-1", "up", stake=1.0, shares=1.0, price=0.123456)
+
+    manager.mark_price("up", 0.123457)
+
+    assert manager.unrealized_pnl() == 0.000001
+
+
+def test_unrealized_pnl_tracks_standalone_negative_position():
+    manager = PositionManager()
+    manager.record_fill("market-1", "up", stake=10.0, shares=3.0, price=0.5)
+
+    manager.mark_price("up", 0.333333)
+
+    assert manager.unrealized_pnl() == -0.500001
+
+
 def test_record_fill_replaces_same_token_position():
     manager = PositionManager()
     manager.record_fill("old-market", "up", stake=5.0, shares=10.0, price=0.5)

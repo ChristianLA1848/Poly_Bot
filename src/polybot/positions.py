@@ -44,7 +44,7 @@ class PositionManager:
             (position.mark_price - position.entry_price) * position.shares
             for position in self.positions.values()
         )
-        return round(pnl, 2)
+        return round(pnl, 6)
 
     def open_positions_count(self) -> int:
         return len(self.positions)
