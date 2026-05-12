@@ -16,6 +16,9 @@ def _load_config_or_exit(config: Path | str) -> BotConfig:
     except FileNotFoundError:
         typer.secho(f"Config file not found: {config}", err=True, fg=typer.colors.RED)
         raise typer.Exit(1) from None
+    except OSError as exc:
+        typer.secho(f"Could not read config file: {config} ({exc})", err=True, fg=typer.colors.RED)
+        raise typer.Exit(1) from None
     except tomllib.TOMLDecodeError as exc:
         typer.secho(f"Invalid TOML config: {exc}", err=True, fg=typer.colors.RED)
         raise typer.Exit(1) from None

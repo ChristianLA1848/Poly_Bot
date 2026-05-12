@@ -96,3 +96,11 @@ def test_check_config_missing_file_exits_cleanly():
     assert result.exit_code == 1
     assert "Config file not found" in result.output
     assert "Traceback" not in result.output
+
+
+def test_check_config_directory_path_exits_cleanly(tmp_path: Path):
+    result = runner.invoke(app, ["check-config", "--config", str(tmp_path)])
+
+    assert result.exit_code == 1
+    assert "Could not read config file" in result.output
+    assert "Traceback" not in result.output
