@@ -1,6 +1,10 @@
 from polybot.models import Decision, DecisionAction
 from polybot.strategies.base import StrategyContext
-from polybot.strategies.baseline_momentum import _expected_return, _no_trade
+from polybot.strategies.baseline_momentum import (
+    _expected_return,
+    _no_trade,
+    _price_delta,
+)
 
 
 class LateWindowStrategy:
@@ -15,9 +19,14 @@ class LateWindowStrategy:
                 reason="outside late window",
             )
 
-        delta = (
-            context.feed.reference_price - context.reference_start_price
-        ) / context.reference_start_price
+        delta = _price_delta(context)
+        if delta is None:
+            return _no_trade(
+                self.name,
+                context,
+                reason="reference start price must be positive",
+            )
+
         if abs(delta) < 0.001:
             return _no_trade(
                 self.name,

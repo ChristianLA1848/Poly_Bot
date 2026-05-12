@@ -31,13 +31,26 @@ def _expected_return(probability: float, book: OrderbookSnapshot) -> float:
     return probability / book.best_ask - 1
 
 
+def _price_delta(context: StrategyContext) -> float | None:
+    if context.reference_start_price <= 0:
+        return None
+    return (
+        context.feed.reference_price - context.reference_start_price
+    ) / context.reference_start_price
+
+
 class BaselineMomentumStrategy:
     name = "baseline_momentum"
 
     def decide(self, context: StrategyContext) -> Decision:
-        delta = (
-            context.feed.reference_price - context.reference_start_price
-        ) / context.reference_start_price
+        delta = _price_delta(context)
+        if delta is None:
+            return _no_trade(
+                self.name,
+                context,
+                reason="reference start price must be positive",
+            )
+
         if abs(delta) < 0.0005:
             return _no_trade(
                 self.name,

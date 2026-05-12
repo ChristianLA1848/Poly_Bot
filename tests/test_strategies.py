@@ -81,6 +81,25 @@ def test_baseline_strategy_skips_small_delta():
     assert decision.reason == "price delta too small"
 
 
+def test_baseline_strategy_trades_at_exact_delta_threshold():
+    decision = load_strategy("baseline_momentum").decide(
+        _context(reference=125.0, price=125.0625)
+    )
+
+    assert decision.action == DecisionAction.BUY_UP
+    assert decision.reason == "btc delta 0.00050"
+
+
+@pytest.mark.parametrize("reference", [0.0, -100.0])
+def test_baseline_strategy_skips_non_positive_reference(reference):
+    decision = load_strategy("baseline_momentum").decide(
+        _context(reference=reference, price=101.0)
+    )
+
+    assert decision.action == DecisionAction.NO_TRADE
+    assert decision.reason == "reference start price must be positive"
+
+
 def test_baseline_strategy_buys_down_when_price_below_reference():
     decision = load_strategy("baseline_momentum").decide(_context(price=99.0))
 
@@ -121,6 +140,58 @@ def test_late_window_strategy_accepts_trade_inside_return_band():
     assert decision.max_slippage == 0.005
 
 
+def test_late_window_strategy_buys_down_inside_return_band():
+    market = _market(end_offset=timedelta(minutes=5))
+    decision = load_strategy("late_window").decide(
+        _context(
+            price=99.8,
+            market=market,
+            now=datetime(2026, 5, 12, 21, 4, 20, tzinfo=UTC),
+            down_ask=0.84,
+        )
+    )
+
+    assert decision.action == DecisionAction.BUY_DOWN
+    assert decision.token_id == "down"
+    assert 0.01 <= decision.expected_return <= 0.10
+
+
+def test_late_window_strategy_trades_at_exact_delta_threshold():
+    market = _market(end_offset=timedelta(minutes=5))
+    decision = load_strategy("late_window").decide(
+        _context(
+            reference=4125.0,
+            price=4129.125,
+            market=market,
+            now=datetime(2026, 5, 12, 21, 4, 20, tzinfo=UTC),
+            up_ask=0.80,
+        )
+    )
+
+    assert decision.action == DecisionAction.BUY_UP
+    assert decision.reason == "late-window probability and return accepted"
+
+
+@pytest.mark.parametrize(
+    ("now", "seconds_remaining"),
+    [
+        (datetime(2026, 5, 12, 21, 4, tzinfo=UTC), 60),
+        (datetime(2026, 5, 12, 21, 4, 40, tzinfo=UTC), 20),
+    ],
+)
+def test_late_window_strategy_trades_at_window_boundaries(
+    now: datetime,
+    seconds_remaining: int,
+):
+    market = _market(end_offset=timedelta(minutes=5))
+    decision = load_strategy("late_window").decide(
+        _context(price=100.2, market=market, now=now, up_ask=0.84)
+    )
+
+    assert (market.end_time - now).total_seconds() == seconds_remaining
+    assert decision.action == DecisionAction.BUY_UP
+
+
 def test_late_window_strategy_skips_small_delta_inside_window():
     market = _market(end_offset=timedelta(minutes=5))
     decision = load_strategy("late_window").decide(
@@ -148,6 +219,22 @@ def test_late_window_strategy_skips_return_outside_band():
 
     assert decision.action == DecisionAction.NO_TRADE
     assert decision.reason == "expected return outside late-window band"
+
+
+@pytest.mark.parametrize("reference", [0.0, -100.0])
+def test_late_window_strategy_skips_non_positive_reference(reference):
+    market = _market(end_offset=timedelta(minutes=5))
+    decision = load_strategy("late_window").decide(
+        _context(
+            reference=reference,
+            price=101.0,
+            market=market,
+            now=datetime(2026, 5, 12, 21, 4, 20, tzinfo=UTC),
+        )
+    )
+
+    assert decision.action == DecisionAction.NO_TRADE
+    assert decision.reason == "reference start price must be positive"
 
 
 def test_load_strategy_rejects_unknown_name():
