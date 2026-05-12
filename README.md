@@ -47,6 +47,10 @@ Open [http://127.0.0.1:8787](http://127.0.0.1:8787).
 
 Stop the dashboard process when finished.
 
+## Current MVP dashboard scope
+
+The current dashboard shows bot status, today's P/L placeholder, decisions, and events. Active market/feed health, open positions, and recent trades as typed panels are next hardening items.
+
 ## Live Trading Variables
 
 Live trading requires credentials in `.env`:

@@ -85,6 +85,7 @@ mode = "hold_to_resolution"
 def test_run_live_missing_env_exits_without_traceback(monkeypatch, tmp_path):
     cfg_path = tmp_path / "bot.toml"
     _write_config(cfg_path, "live")
+    monkeypatch.chdir(tmp_path)
     for name in cli.LIVE_ENV_VARS:
         monkeypatch.delenv(name, raising=False)
 
@@ -101,12 +102,58 @@ def test_build_execution_engine_returns_paper_engine_for_paper_mode():
     assert isinstance(engine, PaperExecutionEngine)
 
 
-def test_build_execution_engine_live_missing_env_fails_cleanly(monkeypatch):
+def test_build_execution_engine_live_missing_env_fails_cleanly(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
     for name in cli.LIVE_ENV_VARS:
         monkeypatch.delenv(name, raising=False)
 
     with pytest.raises(cli.CliConfigError, match="Missing live Polymarket environment variables"):
         cli.build_execution_engine(_config("live"))
+
+
+def test_build_execution_engine_live_loads_polymarket_env_file(monkeypatch, tmp_path):
+    created: dict[str, object] = {}
+
+    class FakeApiCreds:
+        def __init__(self, api_key: str, api_secret: str, api_passphrase: str) -> None:
+            self.api_key = api_key
+            self.api_secret = api_secret
+            self.api_passphrase = api_passphrase
+
+    class FakeClobClient:
+        def __init__(self, **kwargs: object) -> None:
+            created.update(kwargs)
+
+    fake_module = types.ModuleType("py_clob_client_v2")
+    fake_module.ClobClient = FakeClobClient
+    fake_clob_types = types.ModuleType("py_clob_client_v2.clob_types")
+    fake_clob_types.ApiCreds = FakeApiCreds
+    monkeypatch.setitem(sys.modules, "py_clob_client_v2", fake_module)
+    monkeypatch.setitem(sys.modules, "py_clob_client_v2.clob_types", fake_clob_types)
+    monkeypatch.chdir(tmp_path)
+    for name in cli.LIVE_ENV_VARS:
+        monkeypatch.delenv(name, raising=False)
+    (tmp_path / ".env").write_text(
+        "\n".join(
+            (
+                "POLYMARKET_PRIVATE_KEY=private-key-from-env-file",
+                "POLYMARKET_API_KEY=api-key-from-env-file",
+                "POLYMARKET_API_SECRET=api-secret-from-env-file",
+                "POLYMARKET_API_PASSPHRASE=api-passphrase-from-env-file",
+                "POLYMARKET_FUNDER_ADDRESS=0xfunder-from-env-file",
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    engine = cli.build_execution_engine(_config("live"))
+
+    assert isinstance(engine, LiveExecutionEngine)
+    assert created["key"] == "private-key-from-env-file"
+    assert created["funder"] == "0xfunder-from-env-file"
+    assert created["creds"].api_key == "api-key-from-env-file"
+    assert created["creds"].api_secret == "api-secret-from-env-file"
+    assert created["creds"].api_passphrase == "api-passphrase-from-env-file"
 
 
 def test_build_execution_engine_live_missing_optional_dependency_fails_cleanly(monkeypatch):

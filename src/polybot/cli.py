@@ -4,6 +4,7 @@ from pathlib import Path
 import tomllib
 
 from pydantic import ValidationError
+from dotenv import load_dotenv
 import typer
 import uvicorn
 
@@ -95,6 +96,7 @@ def build_execution_engine(cfg: BotConfig) -> PaperExecutionEngine | LiveExecuti
     if cfg.bot.mode == "paper":
         return PaperExecutionEngine()
 
+    load_dotenv(Path.cwd() / ".env")
     missing = [name for name in LIVE_ENV_VARS if not os.environ.get(name)]
     if missing:
         raise CliConfigError(
