@@ -66,7 +66,9 @@ def _decision(
         target_price=target_price,
         estimated_probability=estimated_probability,
         confidence=confidence,
-        expected_return=estimated_probability / target_price - 1,
+        expected_return=(
+            estimated_probability / target_price - 1 if target_price else 0.0
+        ),
         max_slippage=0.01,
         reason="accepted",
         created_at=datetime(2026, 5, 12, 21, 3, tzinfo=UTC),
@@ -159,6 +161,14 @@ def test_fractional_kelly_stake_rounds_to_two_decimals():
 def test_fractional_kelly_returns_zero_when_no_positive_edge():
     config = StakingSection(mode="fractional_kelly", kelly_fraction=0.5)
     decision = _decision(target_price=0.60, estimated_probability=0.50)
+
+    assert calculate_stake(config, decision, max_stake=10.0) == 0.0
+
+
+@pytest.mark.parametrize("target_price", [0.0, -0.10])
+def test_fractional_kelly_returns_zero_when_price_is_not_positive(target_price):
+    config = StakingSection(mode="fractional_kelly", kelly_fraction=0.5)
+    decision = _decision(target_price=target_price, estimated_probability=0.80)
 
     assert calculate_stake(config, decision, max_stake=10.0) == 0.0
 

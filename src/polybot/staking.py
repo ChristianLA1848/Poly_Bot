@@ -11,7 +11,7 @@ def calculate_stake(
         return min(config.fixed_stake, max_stake)
 
     if config.mode == "fractional_kelly":
-        if decision.target_price >= 1.0:
+        if decision.target_price <= 0.0 or decision.target_price >= 1.0:
             return 0.0
         kelly = (decision.estimated_probability - decision.target_price) / (
             1.0 - decision.target_price
