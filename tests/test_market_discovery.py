@@ -1,5 +1,6 @@
-import pytest
 from datetime import UTC, datetime
+
+import pytest
 
 from polybot import market_discovery
 from polybot.market_discovery import current_btc_5m_slug, parse_btc_market
@@ -28,6 +29,13 @@ def test_parse_btc_market_extracts_tokens():
     assert market.down_token_id == "222"
     assert market.tick_size == 0.01
     assert market.accepting_orders is True
+    assert market.price_to_beat is None
+
+
+def test_parse_btc_market_extracts_price_to_beat():
+    market = parse_btc_market(BASE_MARKET_PAYLOAD | {"priceToBeat": 79531.96030389384})
+
+    assert market.price_to_beat == 79531.96030389384
 
 
 def test_current_btc_5m_slug_uses_current_utc_window():
@@ -137,6 +145,7 @@ async def test_market_discovery_does_not_close_injected_client():
 class FakeResponse:
     def __init__(self, payload):
         self.payload = payload
+        self.text = payload if isinstance(payload, str) else ""
 
     def raise_for_status(self):
         return None
@@ -210,10 +219,15 @@ async def test_market_discovery_fetches_current_window_by_slug():
         "slug": "btc-updown-5m-1766162100",
         "acceptingOrders": False,
     }
+    html = (
+        '<script>{"slug":"btc-updown-5m-1778690100",'
+        '"eventMetadata":{"priceToBeat":79531.96030389384}}</script>'
+    )
     client = FakeRoutingClient(
         {
             ("/markets", "btc-updown-5m-1778690100"): [current_payload],
             ("/markets", None): [stale_payload],
+            ("https://polymarket.com/de/event/btc-updown-5m-1778690100", None): html,
         }
     )
     discovery = market_discovery.MarketDiscovery(
@@ -226,9 +240,45 @@ async def test_market_discovery_fetches_current_window_by_slug():
     assert market is not None
     assert market.slug == "btc-updown-5m-1778690100"
     assert market.accepting_orders is True
+    assert market.price_to_beat == 79531.96030389384
     assert client.requests == [
-        ("/markets", {"slug": "btc-updown-5m-1778690100", "closed": "false"})
+        ("/markets", {"slug": "btc-updown-5m-1778690100", "closed": "false"}),
+        ("https://polymarket.com/de/event/btc-updown-5m-1778690100", {}),
     ]
+
+
+@pytest.mark.asyncio
+async def test_market_discovery_uses_next_data_open_price_for_current_window():
+    current_payload = BASE_MARKET_PAYLOAD | {
+        "question": "Bitcoin Up or Down - May 13, 12:35PM-12:40PM ET",
+        "slug": "btc-updown-5m-1778690100",
+        "startDateIso": "2026-05-12",
+        "endDateIso": "2026-05-13",
+        "endDate": "2026-05-13T16:40:00Z",
+    }
+    html = (
+        '<script id="__NEXT_DATA__" type="application/json" crossorigin="anonymous">'
+        '{"props":{"pageProps":{"dehydratedState":{"queries":['
+        '{"queryKey":["crypto-prices","price","BTC","2026-05-13T16:35:00Z",'
+        '"fiveminute","2026-05-13T16:40:00Z"],'
+        '"state":{"data":{"openPrice":79095.05824805648,"closePrice":null}}}'
+        ']}}}}</script>'
+    )
+    client = FakeRoutingClient(
+        {
+            ("/markets", "btc-updown-5m-1778690100"): [current_payload],
+            ("https://polymarket.com/de/event/btc-updown-5m-1778690100", None): html,
+        }
+    )
+    discovery = market_discovery.MarketDiscovery(
+        client=client,
+        now_provider=lambda: datetime(2026, 5, 13, 16, 39, 14, tzinfo=UTC),
+    )
+
+    market = await discovery.find_btc_5m_market()
+
+    assert market is not None
+    assert market.price_to_beat == 79095.05824805648
 
 
 @pytest.mark.asyncio

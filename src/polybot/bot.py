@@ -35,6 +35,7 @@ class BotRunner:
         self.store.initialize()
         self.positions = PositionManager()
         self.reference_start_price = reference_start_price
+        self.reference_market_slug: str | None = None
         self.latest_feed = latest_feed
         self.audit_log = AuditLog(audit_log_path) if audit_log_path is not None else None
 
@@ -72,6 +73,13 @@ class BotRunner:
             return
         self.store.record_market_status("ready", "market ready", now, market)
 
+        if self.reference_market_slug != market.slug:
+            previous_market_slug = self.reference_market_slug
+            self.reference_market_slug = market.slug
+            if market.price_to_beat is not None:
+                self.reference_start_price = market.price_to_beat
+            elif previous_market_slug is not None:
+                self.reference_start_price = None
         if self.reference_start_price is None:
             self.reference_start_price = self.latest_feed.reference_price
         self.store.record_feed_status(self.latest_feed, self.reference_start_price)

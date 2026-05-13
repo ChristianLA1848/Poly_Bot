@@ -365,6 +365,37 @@ async def test_bot_runner_records_feed_and_target_status(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_bot_runner_uses_market_price_to_beat_as_target(tmp_path):
+    now = datetime(2026, 5, 12, 21, 0, tzinfo=UTC)
+    market = Market(
+        "m",
+        "Bitcoin Up or Down",
+        "slug",
+        "up",
+        "down",
+        now,
+        now + timedelta(minutes=5),
+        0.01,
+        5.0,
+        True,
+        99.5,
+    )
+    runner = BotRunner(
+        config=_config(),
+        market_discovery=FakeMarketDiscovery(market=market),
+        orderbook_client=FakeOrderbookClient(),
+        execution=FakeExecution(),
+        store_path=tmp_path / "bot.sqlite3",
+        latest_feed=_feed(),
+    )
+
+    await runner.run_once(now=datetime(2026, 5, 12, 21, 3, tzinfo=UTC))
+
+    assert runner.reference_start_price == 99.5
+    assert runner.store.dashboard_snapshot()["feed_status"]["target_price"] == 99.5
+
+
+@pytest.mark.asyncio
 async def test_bot_runner_records_error_when_execution_engine_missing(tmp_path):
     runner = BotRunner(
         config=_config(),

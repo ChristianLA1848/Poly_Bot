@@ -28,6 +28,7 @@ class Market:
     tick_size: float
     min_size: float
     accepting_orders: bool
+    price_to_beat: float | None = None
 
 
 @dataclass(frozen=True)

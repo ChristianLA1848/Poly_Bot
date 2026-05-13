@@ -1,4 +1,5 @@
 from collections.abc import Callable
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 import json
 import re
@@ -12,6 +13,8 @@ GAMMA_BASE_URL = "https://gamma-api.polymarket.com"
 BTC_5M_SLUG_PREFIX = "btc-updown-5m-"
 BTC_5M_WINDOW_SECONDS = 5 * 60
 BTC_5M_SLUG_RE = re.compile(r"^btc-updown-5m-(?P<timestamp>\d+)$")
+NEXT_DATA_RE = re.compile(r'<script id="__NEXT_DATA__"[^>]*>(?P<data>.*?)</script>')
+PRICE_TO_BEAT_RE = re.compile(r'"priceToBeat"\s*:\s*(?P<price>\d+(?:\.\d+)?)')
 
 
 def _loads_list(value: Any, *, field: str) -> list[str]:
@@ -64,6 +67,85 @@ def _payload_time(payload: dict[str, Any], *fields: str) -> datetime:
     raise ValueError(f"payload must include one of: {', '.join(fields)}")
 
 
+def _parse_optional_float(value: Any) -> float | None:
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _payload_price_to_beat(payload: dict[str, Any]) -> float | None:
+    direct_price = _parse_optional_float(payload.get("priceToBeat"))
+    if direct_price is not None:
+        return direct_price
+
+    metadata = payload.get("eventMetadata")
+    if isinstance(metadata, dict):
+        return _parse_optional_float(metadata.get("priceToBeat"))
+
+    return None
+
+
+def _normalize_iso(value: str) -> str:
+    return value.replace(".000Z", "Z")
+
+
+def _extract_next_data_open_price(html: str, start_time: datetime | None) -> float | None:
+    match = NEXT_DATA_RE.search(html)
+    if match is None:
+        return None
+
+    try:
+        next_data = json.loads(match.group("data"))
+    except json.JSONDecodeError:
+        return None
+
+    expected_start = start_time.isoformat().replace("+00:00", "Z") if start_time else None
+    queries = (
+        next_data.get("props", {})
+        .get("pageProps", {})
+        .get("dehydratedState", {})
+        .get("queries", [])
+    )
+    for query in queries:
+        query_key = query.get("queryKey") or []
+        if query_key[:3] != ["crypto-prices", "price", "BTC"]:
+            continue
+        if expected_start is not None and len(query_key) > 3:
+            if _normalize_iso(query_key[3]) != expected_start:
+                continue
+        data = query.get("state", {}).get("data", {})
+        price = _parse_optional_float(data.get("openPrice"))
+        if price is not None:
+            return price
+
+    return None
+
+
+def _extract_price_to_beat_from_event_page(
+    html: str,
+    slug: str,
+    start_time: datetime | None = None,
+) -> float | None:
+    next_data_price = _extract_next_data_open_price(html, start_time)
+    if next_data_price is not None:
+        return next_data_price
+
+    slug_marker = f'"slug":"{slug}"'
+    start = html.find(slug_marker)
+    while start != -1:
+        next_slug = html.find('"slug":"', start + len(slug_marker))
+        segment = html[start : next_slug if next_slug != -1 else start + 50_000]
+        match = PRICE_TO_BEAT_RE.search(segment)
+        if match is not None:
+            return float(match.group("price"))
+        start = html.find(slug_marker, start + len(slug_marker))
+
+    return None
+
+
 def parse_btc_market(payload: dict[str, Any]) -> Market:
     outcomes = [outcome.strip().lower() for outcome in _loads_list(payload["outcomes"], field="outcomes")]
     token_ids = _loads_list(payload["clobTokenIds"], field="clobTokenIds")
@@ -97,6 +179,7 @@ def parse_btc_market(payload: dict[str, Any]) -> Market:
         tick_size=float(payload.get("orderPriceMinTickSize") or 0.01),
         min_size=float(payload.get("orderMinSize") or 5.0),
         accepting_orders=bool(payload.get("acceptingOrders")),
+        price_to_beat=_payload_price_to_beat(payload),
     )
 
 
@@ -143,13 +226,31 @@ class MarketDiscovery:
             await self.client.aclose()
 
     async def find_btc_5m_market(self) -> Market | None:
+        slug = current_btc_5m_slug(self.now_provider())
         response = await self.client.get(
             "/markets",
             params={
-                "slug": current_btc_5m_slug(self.now_provider()),
+                "slug": slug,
                 "closed": "false",
             },
         )
         response.raise_for_status()
 
-        return _select_best_market(response.json())
+        market = _select_best_market(response.json())
+        if market is None or market.price_to_beat is not None:
+            return market
+
+        price_to_beat = await self._fetch_price_to_beat(slug, market.start_time)
+        if price_to_beat is None:
+            return market
+
+        return replace(market, price_to_beat=price_to_beat)
+
+    async def _fetch_price_to_beat(self, slug: str, start_time: datetime | None) -> float | None:
+        try:
+            response = await self.client.get(f"https://polymarket.com/de/event/{slug}", params={})
+            response.raise_for_status()
+        except httpx.HTTPError:
+            return None
+
+        return _extract_price_to_beat_from_event_page(response.text, slug, start_time)
