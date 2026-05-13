@@ -75,6 +75,12 @@ class BotControlService:
                 )
 
             if not self._stop_requested.is_set():
-                await asyncio.sleep(config.bot.cycle_seconds)
+                try:
+                    await asyncio.wait_for(
+                        self._stop_requested.wait(),
+                        timeout=config.bot.cycle_seconds,
+                    )
+                except TimeoutError:
+                    pass
 
         self.store.record_runtime_status("stopped", "Bot is stopped.", datetime.now(tz=UTC))

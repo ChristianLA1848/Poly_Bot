@@ -36,6 +36,22 @@ def config_for_control(cycle_seconds: float = 0.01) -> BotConfig:
     )
 
 
+async def wait_for_runtime_state(
+    store: StateStore,
+    state: str,
+    *,
+    timeout: float = 1.0,
+) -> dict:
+    async def poll() -> dict:
+        while True:
+            status = store.dashboard_snapshot()["runtime_status"]
+            if status["state"] == state:
+                return status
+            await asyncio.sleep(0.001)
+
+    return await asyncio.wait_for(poll(), timeout=timeout)
+
+
 @pytest.mark.asyncio
 async def test_control_service_start_and_stop_records_runtime_status(tmp_path):
     store = StateStore(tmp_path / "bot.sqlite3")
@@ -116,13 +132,11 @@ async def test_control_service_start_is_idempotent_while_running(tmp_path):
 async def test_control_service_run_once_exception_records_error_and_stop_still_works(tmp_path):
     store = StateStore(tmp_path / "bot.sqlite3")
     store.initialize()
-    failed_once = asyncio.Event()
     cycles = {"count": 0}
 
     async def fake_run_once(cfg, store_path, audit_log_path):
         cycles["count"] += 1
         if cycles["count"] == 1:
-            failed_once.set()
             raise RuntimeError("boom")
         await asyncio.sleep(0)
 
@@ -135,11 +149,39 @@ async def test_control_service_run_once_exception_records_error_and_stop_still_w
     )
 
     await service.start()
-    await asyncio.wait_for(failed_once.wait(), timeout=1)
-    error_status = store.dashboard_snapshot()["runtime_status"]
+    error_status = await wait_for_runtime_state(store, "error")
     stop_status = await service.stop()
 
     assert error_status["state"] == "error"
     assert error_status["last_error"] == "boom"
     assert stop_status["state"] == "stopped"
     assert cycles["count"] >= 1
+
+
+@pytest.mark.asyncio
+async def test_control_service_stop_is_responsive_during_cycle_sleep(tmp_path):
+    store = StateStore(tmp_path / "bot.sqlite3")
+    store.initialize()
+    cycle_started = asyncio.Event()
+    cycle_finished = asyncio.Event()
+
+    async def fake_run_once(cfg, store_path, audit_log_path):
+        cycle_started.set()
+        await asyncio.sleep(0)
+        cycle_finished.set()
+
+    service = BotControlService(
+        store=store,
+        default_config=config_for_control(cycle_seconds=60),
+        store_path=tmp_path / "bot.sqlite3",
+        audit_log_path=tmp_path / "audit.jsonl",
+        run_once=fake_run_once,
+    )
+
+    await service.start()
+    await asyncio.wait_for(cycle_started.wait(), timeout=1)
+    await asyncio.wait_for(cycle_finished.wait(), timeout=1)
+    await asyncio.sleep(0.01)
+    stop_status = await asyncio.wait_for(service.stop(), timeout=1)
+
+    assert stop_status["state"] == "stopped"
