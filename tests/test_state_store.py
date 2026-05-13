@@ -409,6 +409,71 @@ def test_state_store_evaluates_paper_trade_win_and_loss(tmp_path):
     assert trades[1]["pnl"] == -5.0
 
 
+def test_state_store_returns_paper_analytics_summary(tmp_path):
+    store = StateStore(tmp_path / "bot.sqlite3")
+    store.initialize()
+    created_at = datetime(2026, 5, 13, 20, 20, tzinfo=UTC)
+    end_time = datetime(2026, 5, 13, 20, 25, tzinfo=UTC)
+    store.record_paper_trade(
+        PaperTrade(
+            None,
+            created_at,
+            "slug-1",
+            "0xmarket",
+            "up",
+            "BUY_UP",
+            "late_window_5m",
+            "late_window_high_confidence",
+            5.0,
+            0.5,
+            10.0,
+            "filled",
+            0.7,
+            0.5,
+            0.2,
+            100.0,
+            101.0,
+            end_time,
+        )
+    )
+    store.record_paper_trade(
+        PaperTrade(
+            None,
+            created_at,
+            "slug-2",
+            "0xmarket",
+            "down",
+            "BUY_DOWN",
+            "baseline_momentum",
+            "momentum_down",
+            5.0,
+            0.5,
+            10.0,
+            "filled",
+            0.6,
+            0.5,
+            0.1,
+            100.0,
+            99.0,
+            end_time,
+        )
+    )
+    store.evaluate_open_paper_trades(datetime(2026, 5, 13, 20, 26, tzinfo=UTC), 101.0)
+
+    analytics = store.paper_analytics()
+
+    assert analytics["total_trades"] == 2
+    assert analytics["resolved_trades"] == 2
+    assert analytics["winning_trades"] == 1
+    assert analytics["losing_trades"] == 1
+    assert analytics["win_rate"] == 0.5
+    assert analytics["total_pnl"] == 0.0
+    assert analytics["average_edge"] == 0.15
+    assert analytics["by_strategy"]["late_window_5m"]["trades"] == 1
+    assert len(analytics["equity_curve"]) == 2
+    assert analytics["equity_curve"][-1]["cumulative_pnl"] == 0.0
+
+
 def test_state_store_orders_snapshot_by_created_at_then_id(tmp_path):
     store = StateStore(tmp_path / "bot.sqlite3")
     store.initialize()

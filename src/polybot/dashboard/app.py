@@ -44,6 +44,7 @@ def create_dashboard_app(
             }
             for item in list_strategy_metadata()
         ]
+        data["paper_analytics"] = store.paper_analytics()
         if default_config is not None:
             data.setdefault("settings", store.get_settings(default_config))
         return data

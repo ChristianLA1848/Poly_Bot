@@ -301,6 +301,52 @@ class StateStore:
                 )
         return len(rows)
 
+    def paper_analytics(self) -> dict[str, Any]:
+        trades = self.list_paper_trades(limit=1000)
+        resolved = [trade for trade in trades if trade["resolved_at"] is not None]
+        open_trades = [trade for trade in trades if trade["resolved_at"] is None]
+        wins = [trade for trade in resolved if trade["outcome"] == "win"]
+        losses = [trade for trade in resolved if trade["outcome"] == "loss"]
+        total_pnl = round(sum(float(trade["pnl"] or 0) for trade in resolved), 6)
+        average_pnl = round(total_pnl / len(resolved), 6) if resolved else 0.0
+        edge_values = [float(trade["edge"]) for trade in trades if trade["edge"] is not None]
+        average_edge = round(sum(edge_values) / len(edge_values), 6) if edge_values else 0.0
+
+        by_strategy: dict[str, dict[str, Any]] = {}
+        for trade in trades:
+            strategy = trade["strategy"]
+            bucket = by_strategy.setdefault(strategy, {"trades": 0, "pnl": 0.0})
+            bucket["trades"] += 1
+            bucket["pnl"] = round(bucket["pnl"] + float(trade["pnl"] or 0), 6)
+
+        cumulative = 0.0
+        equity_curve = []
+        for trade in sorted(resolved, key=lambda row: (row["resolved_at"], row["id"])):
+            pnl = float(trade["pnl"] or 0)
+            cumulative = round(cumulative + pnl, 6)
+            equity_curve.append(
+                {
+                    "resolved_at": trade["resolved_at"],
+                    "pnl": pnl,
+                    "cumulative_pnl": cumulative,
+                }
+            )
+
+        return {
+            "total_trades": len(trades),
+            "open_trades": len(open_trades),
+            "resolved_trades": len(resolved),
+            "winning_trades": len(wins),
+            "losing_trades": len(losses),
+            "win_rate": round(len(wins) / len(resolved), 6) if resolved else 0.0,
+            "total_pnl": total_pnl,
+            "average_pnl": average_pnl,
+            "average_edge": average_edge,
+            "by_strategy": by_strategy,
+            "equity_curve": equity_curve,
+            "recent_paper_trades": trades[:20],
+        }
+
     def get_settings(self, default_config: BotConfig) -> dict[str, Any]:
         with self.connect() as conn:
             row = conn.execute("SELECT payload FROM settings WHERE id = 1").fetchone()

@@ -160,6 +160,19 @@ def test_dashboard_snapshot_includes_strategy_metadata(tmp_path):
     assert names == ["baseline_momentum", "late_window_5m", "trend_following"]
 
 
+def test_dashboard_snapshot_includes_paper_analytics(tmp_path):
+    store = StateStore(tmp_path / "bot.sqlite3")
+    store.initialize()
+    app = create_dashboard_app(store, dashboard_config_for_test(), control_service=None)
+    client = TestClient(app)
+
+    response = client.get("/api/snapshot")
+
+    assert response.status_code == 200
+    assert response.json()["paper_analytics"]["total_trades"] == 0
+    assert response.json()["paper_analytics"]["equity_curve"] == []
+
+
 def test_dashboard_root_contains_tabs_controls_and_settings(tmp_path):
     store = StateStore(tmp_path / "bot.sqlite3")
     store.initialize()
