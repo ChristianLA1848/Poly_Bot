@@ -1,7 +1,35 @@
 from fastapi.testclient import TestClient
 
+from polybot.config import (
+    BotConfig,
+    BotSection,
+    ExitSection,
+    LateWindowSection,
+    RiskSection,
+    StakingSection,
+    StrategySection,
+)
 from polybot.dashboard.app import create_dashboard_app
 from polybot.state_store import StateStore
+
+
+def dashboard_config_for_test() -> BotConfig:
+    return BotConfig(
+        bot=BotSection(),
+        risk=RiskSection(
+            max_stake=10.0,
+            max_daily_loss=25.0,
+            max_spread=0.05,
+            min_liquidity=100.0,
+            min_edge=0.01,
+            max_feed_age_ms=5000,
+            max_feed_deviation_bps=50,
+        ),
+        strategy=StrategySection(),
+        staking=StakingSection(),
+        exit=ExitSection(),
+        late_window=LateWindowSection(),
+    )
 
 
 def test_dashboard_health_and_snapshot(tmp_path):
@@ -44,3 +72,60 @@ def test_dashboard_snapshot_includes_defaults(tmp_path):
     assert response.json()["bot_status"] == "ready"
     assert response.json()["today_pnl"] == 0.0
     assert response.json()["market_status"]["state"] == "unknown"
+
+
+def test_dashboard_settings_get_and_put(tmp_path):
+    store = StateStore(tmp_path / "bot.sqlite3")
+    store.initialize()
+    cfg = dashboard_config_for_test()
+    app = create_dashboard_app(store, default_config=cfg, control_service=None)
+    client = TestClient(app)
+
+    settings = client.get("/api/settings").json()
+    settings["bot"]["mode"] = "live"
+    response = client.put("/api/settings", json=settings)
+
+    assert response.status_code == 200
+    assert response.json()["bot"]["mode"] == "live"
+
+
+def test_dashboard_settings_reject_invalid_payload(tmp_path):
+    store = StateStore(tmp_path / "bot.sqlite3")
+    store.initialize()
+    cfg = dashboard_config_for_test()
+    app = create_dashboard_app(store, default_config=cfg, control_service=None)
+    client = TestClient(app)
+
+    response = client.put("/api/settings", json={"bot": {"mode": "invalid"}})
+
+    assert response.status_code == 422
+
+
+def test_dashboard_start_stop_routes_call_control_service(tmp_path):
+    class FakeControl:
+        async def start(self):
+            return {"state": "running", "message": "Bot loop running."}
+
+        async def stop(self):
+            return {"state": "stopped", "message": "Bot is stopped."}
+
+    store = StateStore(tmp_path / "bot.sqlite3")
+    store.initialize()
+    app = create_dashboard_app(store, dashboard_config_for_test(), FakeControl())
+    client = TestClient(app)
+
+    assert client.post("/api/bot/start").json()["state"] == "running"
+    assert client.post("/api/bot/stop").json()["state"] == "stopped"
+
+
+def test_dashboard_snapshot_includes_settings_when_default_config_supplied(tmp_path):
+    store = StateStore(tmp_path / "bot.sqlite3")
+    store.initialize()
+    cfg = dashboard_config_for_test()
+    app = create_dashboard_app(store, default_config=cfg)
+    client = TestClient(app)
+
+    response = client.get("/api/snapshot")
+
+    assert response.status_code == 200
+    assert response.json()["settings"] == cfg.model_dump(mode="json")

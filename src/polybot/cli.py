@@ -12,6 +12,7 @@ from polybot.bot import BotRunner
 from polybot.config import BotConfig
 from polybot.config import RuntimeSettings, load_bot_config
 from polybot.dashboard import create_dashboard_app
+from polybot.dashboard.control import BotControlService
 from polybot.execution.live import LiveExecutionEngine
 from polybot.execution.paper import PaperExecutionEngine
 from polybot.price_feeds import fetch_btc_feed_aggregate
@@ -134,8 +135,9 @@ def dashboard(config: Path | None = None) -> None:
     cfg = _load_config_or_exit(config or settings.config)
     store = StateStore(settings.db_path)
     store.initialize()
+    control = BotControlService(store, cfg, settings.db_path, settings.audit_log_path, _run_one_cycle)
     uvicorn.run(
-        create_dashboard_app(store),
+        create_dashboard_app(store, cfg, control),
         host=cfg.bot.dashboard_host,
         port=cfg.bot.dashboard_port,
     )
