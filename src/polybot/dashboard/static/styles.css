@@ -269,6 +269,46 @@ button {
   list-style: none;
 }
 
+.chart {
+  min-height: 260px;
+  padding: 18px;
+}
+
+.chart.is-empty {
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.chart svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  min-height: 220px;
+}
+
+.zero-line {
+  stroke: var(--border);
+  stroke-width: 2;
+}
+
+.positive-line,
+.negative-line {
+  fill: none;
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.positive-line {
+  stroke: #0f766e;
+}
+
+.negative-line {
+  stroke: #b42318;
+}
+
 .row,
 .empty {
   padding: 14px 18px;

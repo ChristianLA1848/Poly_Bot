@@ -183,6 +183,7 @@ def test_dashboard_root_contains_tabs_controls_and_settings(tmp_path):
 
     assert 'data-tab-target="monitor"' in html
     assert 'data-tab-target="settings"' in html
+    assert 'data-tab-target="analytics"' in html
     assert 'data-tab-target="logs"' in html
     assert 'role="tablist"' in html
     assert 'role="tab"' in html
@@ -199,6 +200,12 @@ def test_dashboard_root_contains_tabs_controls_and_settings(tmp_path):
     assert 'id="strategy-estimated-probability"' in html
     assert 'id="strategy-market-probability"' in html
     assert 'id="strategy-compatibility"' in html
+    assert 'id="paper-total-pnl"' in html
+    assert 'id="paper-win-rate"' in html
+    assert 'id="paper-trade-counts"' in html
+    assert 'id="paper-average-edge"' in html
+    assert 'id="equity-curve"' in html
+    assert 'id="paper-trades"' in html
     assert 'name="bot.mode"' in html
     assert 'name="bot.cycle_seconds" min="0.01"' in html
     assert 'name="strategy.name"' in html

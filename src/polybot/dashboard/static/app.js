@@ -26,6 +26,14 @@ const stopBotButton = document.querySelector("#stop-bot");
 const settingsForm = document.querySelector("#settings-form");
 const settingsStatus = document.querySelector("#settings-status");
 const strategySelect = document.querySelector('select[name="strategy.name"]');
+const paperTotalPnl = document.querySelector("#paper-total-pnl");
+const paperWinRate = document.querySelector("#paper-win-rate");
+const paperTradeCounts = document.querySelector("#paper-trade-counts");
+const paperAverageEdge = document.querySelector("#paper-average-edge");
+const equityCurve = document.querySelector("#equity-curve");
+const equityPointCount = document.querySelector("#equity-point-count");
+const paperTradeCount = document.querySelector("#paper-trade-count");
+const paperTradesList = document.querySelector("#paper-trades");
 
 let currentSettings = {};
 
@@ -289,6 +297,69 @@ function renderFeedStatus(feed) {
   targetDelta.textContent = deltaParts.length > 0 ? deltaParts.join(" / ") : "-";
 }
 
+function renderEquityCurve(points) {
+  if (!equityCurve) return;
+  equityCurve.innerHTML = "";
+  if (!points || points.length === 0) {
+    equityCurve.classList.add("is-empty");
+    equityCurve.textContent = "No resolved paper trades yet.";
+    setText(equityPointCount, "0");
+    return;
+  }
+  equityCurve.classList.remove("is-empty");
+  setText(equityPointCount, String(points.length));
+  const width = 640;
+  const height = 220;
+  const values = points.map((point) => Number(point.cumulative_pnl));
+  const min = Math.min(0, ...values);
+  const max = Math.max(0, ...values);
+  const span = max - min || 1;
+  const path = values
+    .map((value, index) => {
+      const x = points.length === 1 ? width : (index / (points.length - 1)) * width;
+      const y = height - ((value - min) / span) * height;
+      return `${index === 0 ? "M" : "L"} ${x.toFixed(2)} ${y.toFixed(2)}`;
+    })
+    .join(" ");
+  const zeroY = height - ((0 - min) / span) * height;
+  equityCurve.innerHTML = `
+    <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Cumulative paper P/L">
+      <line x1="0" y1="${zeroY.toFixed(2)}" x2="${width}" y2="${zeroY.toFixed(2)}" class="zero-line"></line>
+      <path d="${path}" class="${values.at(-1) >= 0 ? "positive-line" : "negative-line"}"></path>
+    </svg>
+  `;
+}
+
+function renderPaperTrades(trades) {
+  if (!paperTradesList) return;
+  setText(paperTradeCount, String((trades || []).length));
+  paperTradesList.innerHTML = "";
+  if (!trades || trades.length === 0) {
+    renderEmpty(paperTradesList, "No paper trades recorded yet.");
+    return;
+  }
+  for (const trade of trades) {
+    const pnl = trade.pnl === null || trade.pnl === undefined ? "open" : formatCurrency(trade.pnl, true);
+    paperTradesList.appendChild(
+      createRow(
+        `${trade.action || "TRADE"} ${pnl}`,
+        `${trade.strategy || "-"} / ${trade.reason_code || "-"}`,
+        trade.created_at || "",
+      ),
+    );
+  }
+}
+
+function renderPaperAnalytics(analytics) {
+  const data = analytics || {};
+  setText(paperTotalPnl, formatCurrency(data.total_pnl || 0, true));
+  setText(paperWinRate, `${(Number(data.win_rate || 0) * 100).toFixed(1)}%`);
+  setText(paperTradeCounts, `${data.open_trades || 0} open / ${data.resolved_trades || 0} resolved`);
+  setText(paperAverageEdge, data.average_edge === undefined ? "-" : Number(data.average_edge).toFixed(4));
+  renderEquityCurve(data.equity_curve || []);
+  renderPaperTrades(data.recent_paper_trades || []);
+}
+
 async function refreshSnapshot() {
   const response = await fetch("/api/snapshot");
   if (!response.ok) {
@@ -307,6 +378,7 @@ async function refreshSnapshot() {
   renderStrategyMetrics(recentDecisions, snapshot);
   renderDecisions(recentDecisions);
   renderEvents(snapshot.recent_events || []);
+  renderPaperAnalytics(snapshot.paper_analytics);
 }
 
 async function loadSettings() {

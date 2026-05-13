@@ -42,6 +42,17 @@
         <button
           class="tab"
           type="button"
+          id="analytics-tab"
+          role="tab"
+          aria-selected="false"
+          aria-controls="analytics-panel"
+          data-tab-target="analytics"
+        >
+          Analytics
+        </button>
+        <button
+          class="tab"
+          type="button"
           id="logs-tab"
           role="tab"
           aria-selected="false"
@@ -253,6 +264,37 @@
             <span id="settings-status" role="status"></span>
           </div>
         </form>
+      </section>
+
+      <section
+        class="tab-panel"
+        id="analytics-panel"
+        role="tabpanel"
+        aria-labelledby="analytics-tab"
+        data-tab-panel="analytics"
+      >
+        <section class="metrics" aria-label="Paper analytics metrics">
+          <article class="metric"><span>Paper P/L</span><strong id="paper-total-pnl">$0.00</strong></article>
+          <article class="metric"><span>Win Rate</span><strong id="paper-win-rate">0.0%</strong></article>
+          <article class="metric"><span>Trades</span><strong id="paper-trade-counts">0 / 0</strong></article>
+          <article class="metric"><span>Average Edge</span><strong id="paper-average-edge">-</strong></article>
+        </section>
+        <section class="grid">
+          <article class="panel">
+            <div class="panel-heading">
+              <h2>Equity Curve</h2>
+              <span id="equity-point-count">0</span>
+            </div>
+            <div class="chart" id="equity-curve" aria-label="Paper equity curve"></div>
+          </article>
+          <article class="panel">
+            <div class="panel-heading">
+              <h2>Paper Trades</h2>
+              <span id="paper-trade-count">0</span>
+            </div>
+            <ul class="list" id="paper-trades"></ul>
+          </article>
+        </section>
       </section>
 
       <section
