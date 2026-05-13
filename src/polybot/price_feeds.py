@@ -1,12 +1,16 @@
 from datetime import UTC, datetime
+import asyncio
+import json
 from statistics import median
 import time
 from typing import Any
 
 import httpx
+import websockets
 
 from polybot.models import FeedAggregate, FeedPrice
 
+POLYMARKET_RTDS_URL = "wss://ws-live-data.polymarket.com"
 BINANCE_BTC_URL = "https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT"
 COINBASE_BTC_URL = "https://api.coinbase.com/v2/prices/BTC-USD/spot"
 
@@ -54,6 +58,66 @@ def aggregate_prices(
 
 
 async def fetch_btc_feed_aggregate(
+    max_age_ms: int,
+    client: httpx.AsyncClient | Any | None = None,
+    websocket_connect: Any | None = None,
+) -> FeedAggregate:
+    """Fetch Polymarket's BTC Chainlink RTDS price and wrap it as an aggregate."""
+    if client is not None:
+        return await fetch_btc_feed_aggregate_rest(max_age_ms=max_age_ms, client=client)
+
+    return await fetch_btc_chainlink_rtds_aggregate(
+        max_age_ms=max_age_ms,
+        websocket_connect=websocket_connect,
+    )
+
+
+async def fetch_btc_chainlink_rtds_aggregate(
+    max_age_ms: int,
+    websocket_connect: Any | None = None,
+    timeout_seconds: float = 5.0,
+) -> FeedAggregate:
+    if max_age_ms < 0:
+        raise ValueError("max_age_ms must be non-negative")
+
+    connect = websocket_connect or websockets.connect
+    subscribe_message = {
+        "action": "subscribe",
+        "subscriptions": [
+            {
+                "topic": "crypto_prices_chainlink",
+                "type": "*",
+                "filters": '{"symbol":"btc/usd"}',
+            }
+        ],
+    }
+
+    async with connect(POLYMARKET_RTDS_URL) as websocket:
+        await websocket.send(json.dumps(subscribe_message))
+        while True:
+            message = await asyncio.wait_for(websocket.recv(), timeout=timeout_seconds)
+            try:
+                data = json.loads(message)
+            except json.JSONDecodeError:
+                continue
+            payload = data.get("payload")
+            if not isinstance(payload, dict):
+                continue
+            if data.get("topic") != "crypto_prices_chainlink":
+                continue
+            if payload.get("symbol") != "btc/usd":
+                continue
+            price = FeedPrice(
+                "polymarket_rtds_chainlink",
+                "btc/usd",
+                float(payload["value"]),
+                int(payload["timestamp"]),
+            )
+            now_ms = int(time.time() * 1000)
+            return aggregate_prices([price], now_ms=now_ms, max_age_ms=max_age_ms)
+
+
+async def fetch_btc_feed_aggregate_rest(
     max_age_ms: int,
     client: httpx.AsyncClient | Any | None = None,
 ) -> FeedAggregate:

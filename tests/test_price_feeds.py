@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+import json
 
 import pytest
 
@@ -110,12 +111,116 @@ class FakeClient:
         return FakeResponse({"data": {"amount": "100.20"}})
 
 
+class FakeWebSocket:
+    def __init__(self, messages):
+        self.messages = list(messages)
+        self.sent = []
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        return None
+
+    async def send(self, message):
+        self.sent.append(json.loads(message))
+
+    async def recv(self):
+        message = self.messages.pop(0)
+        if isinstance(message, str):
+            return message
+        return json.dumps(message)
+
+
 @pytest.mark.asyncio
-async def test_fetch_btc_feed_aggregate_uses_public_rest_prices(monkeypatch):
+async def test_fetch_btc_feed_aggregate_uses_polymarket_chainlink_rtds(monkeypatch):
+    fake_socket = FakeWebSocket(
+        [
+            {
+                "topic": "crypto_prices",
+                "type": "update",
+                "timestamp": 1_753_314_088_390,
+                "payload": {
+                    "symbol": "btcusdt",
+                    "timestamp": 1_753_314_088_390,
+                    "value": 67_200.00,
+                },
+            },
+            {
+                "topic": "crypto_prices_chainlink",
+                "type": "update",
+                "timestamp": 1_753_314_088_421,
+                "payload": {
+                    "symbol": "btc/usd",
+                    "timestamp": 1_753_314_088_395,
+                    "value": 67_234.50,
+                },
+            },
+        ]
+    )
+    monkeypatch.setattr("polybot.price_feeds.time.time", lambda: 1_753_314_088.5)
+
+    agg = await price_feeds.fetch_btc_feed_aggregate(
+        max_age_ms=2_500,
+        websocket_connect=lambda url: fake_socket,
+    )
+
+    assert fake_socket.sent == [
+        {
+            "action": "subscribe",
+            "subscriptions": [
+                {
+                    "topic": "crypto_prices_chainlink",
+                    "type": "*",
+                    "filters": '{"symbol":"btc/usd"}',
+                }
+            ],
+        }
+    ]
+    assert [price.source for price in agg.prices] == ["polymarket_rtds_chainlink"]
+    assert agg.prices[0].symbol == "btc/usd"
+    assert agg.prices[0].value == 67_234.50
+    assert agg.prices[0].timestamp_ms == 1_753_314_088_395
+    assert agg.reference_price == 67_234.50
+    assert agg.fresh is True
+
+
+@pytest.mark.asyncio
+async def test_fetch_btc_feed_aggregate_skips_non_json_rtds_messages(monkeypatch):
+    fake_socket = FakeWebSocket(
+        [
+            "PONG",
+            {
+                "topic": "crypto_prices_chainlink",
+                "type": "update",
+                "timestamp": 1_753_314_088_421,
+                "payload": {
+                    "symbol": "btc/usd",
+                    "timestamp": 1_753_314_088_395,
+                    "value": 67_234.50,
+                },
+            },
+        ]
+    )
+    monkeypatch.setattr("polybot.price_feeds.time.time", lambda: 1_753_314_088.5)
+
+    agg = await price_feeds.fetch_btc_feed_aggregate(
+        max_age_ms=2_500,
+        websocket_connect=lambda url: fake_socket,
+    )
+
+    assert agg.reference_price == 67_234.50
+
+
+@pytest.mark.asyncio
+async def test_fetch_btc_feed_aggregate_rest_fallback_uses_public_rest_prices(monkeypatch):
     fake_client = FakeClient()
     monkeypatch.setattr("polybot.price_feeds.time.time", lambda: 1_778_520_000.0)
 
-    agg = await price_feeds.fetch_btc_feed_aggregate(max_age_ms=2_500, client=fake_client)
+    agg = await price_feeds.fetch_btc_feed_aggregate_rest(
+        max_age_ms=2_500,
+        client=fake_client,
+    )
 
     assert fake_client.urls == [
         "https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT",

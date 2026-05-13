@@ -1,6 +1,6 @@
 # Polymarket BTC Bot
 
-Private bot for Polymarket BTC 5-minute Up/Down events. The bot discovers the current 5-minute BTC event from the `btc-updown-5m-<timestamp>` slug, reads BTC price feeds, evaluates the selected strategy, applies risk/staking rules, and can run in paper or live mode from the local dashboard.
+Private bot for Polymarket BTC 5-minute Up/Down events. The bot discovers the current 5-minute BTC event from the `btc-updown-5m-<timestamp>` slug, reads the Polymarket RTDS Chainlink BTC/USD stream, evaluates the selected strategy, applies risk/staking rules, and can run in paper or live mode from the local dashboard.
 
 ## What The Software Does
 
@@ -15,7 +15,7 @@ Private bot for Polymarket BTC 5-minute Up/Down events. The bot discovers the cu
 
 - macOS/Linux shell
 - Python managed by `uv`
-- Internet access for Polymarket Gamma/CLOB APIs and BTC price feeds
+- Internet access for Polymarket Gamma/CLOB APIs and the Polymarket RTDS WebSocket
 - For live trading only: Polymarket wallet/API credentials and funded account
 
 Install `uv` if it is not available:
@@ -100,6 +100,8 @@ max_open_positions = 1
 max_open_orders = 2
 ```
 
+`max_feed_age_ms` is applied to the Chainlink RTDS payload timestamp. If the RTDS tick is older than this threshold, the risk gate treats the feed as stale and will not trade.
+
 Validate configuration:
 
 ```sh
@@ -118,11 +120,12 @@ Open:
 
 [http://127.0.0.1:8787](http://127.0.0.1:8787)
 
-The dashboard has three tabs:
+The dashboard has four tabs:
 
 - **Monitor**: BTC price, target price, delta, market status, P/L, Start/Stop.
 - **Settings**: mode, strategy, staking, risk, and late-window settings.
 - **Logs**: recent decisions and recent bot events.
+- **Analytics**: paper-trade P/L, win rate, edge, equity curve, and recent paper trades.
 
 Settings saved in the dashboard apply to the next bot start. Stop and restart the bot loop after changing important settings.
 
@@ -199,6 +202,18 @@ That timestamp is the start of the 5-minute window. The bot calls Gamma directly
 ```
 
 This avoids stale BTC markets from the generic market listing.
+
+## BTC Price Source
+
+For BTC 5-minute markets, Polymarket resolves against Chainlink BTC/USD data. The bot therefore uses Polymarket's Real-Time Data Socket:
+
+```text
+wss://ws-live-data.polymarket.com
+topic: crypto_prices_chainlink
+filter: {"symbol":"btc/usd"}
+```
+
+The public Chainlink page at `https://data.chain.link/streams/btc-usd-cexprice-streams` is useful for identifying the stream, but Chainlink labels that web display as delayed informational data. It should not be used as the bot's live trading feed.
 
 ## Common Dashboard Statuses
 
