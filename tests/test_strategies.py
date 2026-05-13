@@ -74,6 +74,16 @@ def test_baseline_strategy_buys_up_when_price_above_reference():
     assert decision.confidence > 0.5
 
 
+def test_strategy_decision_includes_reason_code_and_edge_fields():
+    decision = load_strategy("baseline_momentum").decide(_context())
+
+    assert decision.reason_code == "momentum_up"
+    assert decision.market_probability == 0.62
+    assert decision.edge == pytest.approx(decision.estimated_probability - 0.62)
+    assert decision.to_dict()["reason_code"] == "momentum_up"
+    assert "edge" in decision.to_dict()
+
+
 def test_baseline_strategy_skips_small_delta():
     decision = load_strategy("baseline_momentum").decide(_context(price=100.04))
 

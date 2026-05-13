@@ -17,6 +17,7 @@ class LateWindowStrategy:
                 self.name,
                 context,
                 reason="outside late window",
+                reason_code="too_early",
             )
 
         delta = _price_delta(context)
@@ -25,6 +26,7 @@ class LateWindowStrategy:
                 self.name,
                 context,
                 reason="reference start price must be positive",
+                reason_code="invalid_reference",
             )
 
         if abs(delta) < 0.001:
@@ -32,6 +34,7 @@ class LateWindowStrategy:
                 self.name,
                 context,
                 reason="late window edge too small",
+                reason_code="edge_too_low",
             )
 
         if delta > 0:
@@ -48,8 +51,11 @@ class LateWindowStrategy:
                 self.name,
                 context,
                 reason="expected return outside late-window band",
+                reason_code="return_out_of_range",
                 estimated_probability=estimated_probability,
                 expected_return=expected_return,
+                market_probability=book.best_ask,
+                edge=estimated_probability - book.best_ask,
             )
 
         return Decision(
@@ -64,4 +70,7 @@ class LateWindowStrategy:
             max_slippage=0.005,
             reason="late-window probability and return accepted",
             created_at=context.now,
+            reason_code="late_window_high_confidence",
+            market_probability=book.best_ask,
+            edge=estimated_probability - book.best_ask,
         )

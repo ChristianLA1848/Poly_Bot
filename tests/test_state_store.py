@@ -262,6 +262,9 @@ def test_state_store_records_full_decision_payload(tmp_path):
         "max_slippage": 0.01,
         "reason": "momentum down",
         "created_at": created_at.isoformat(),
+        "reason_code": "",
+        "market_probability": None,
+        "edge": None,
     }
 
 

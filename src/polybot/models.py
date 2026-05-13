@@ -110,6 +110,9 @@ class Decision:
     max_slippage: float
     reason: str
     created_at: datetime
+    reason_code: str = ""
+    market_probability: float | None = None
+    edge: float | None = None
 
     def to_dict(self) -> dict[str, Any]:
         data = asdict(self)

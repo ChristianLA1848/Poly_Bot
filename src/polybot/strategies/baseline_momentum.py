@@ -7,8 +7,11 @@ def _no_trade(
     context: StrategyContext,
     *,
     reason: str,
+    reason_code: str,
     estimated_probability: float = 0.5,
     expected_return: float = 0.0,
+    market_probability: float | None = None,
+    edge: float | None = None,
 ) -> Decision:
     return Decision(
         strategy=strategy,
@@ -22,6 +25,9 @@ def _no_trade(
         max_slippage=0.0,
         reason=reason,
         created_at=context.now,
+        reason_code=reason_code,
+        market_probability=market_probability,
+        edge=edge,
     )
 
 
@@ -49,6 +55,7 @@ class BaselineMomentumStrategy:
                 self.name,
                 context,
                 reason="reference start price must be positive",
+                reason_code="invalid_reference",
             )
 
         if abs(delta) < 0.0005:
@@ -56,6 +63,7 @@ class BaselineMomentumStrategy:
                 self.name,
                 context,
                 reason="price delta too small",
+                reason_code="delta_too_small",
             )
 
         if delta > 0:
@@ -67,6 +75,8 @@ class BaselineMomentumStrategy:
 
         estimated_probability = min(0.95, max(0.05, 0.5 + abs(delta) * 40))
         confidence = min(0.99, 0.5 + abs(delta) * 50)
+        market_probability = book.best_ask
+        edge = estimated_probability - market_probability
 
         return Decision(
             strategy=self.name,
@@ -80,4 +90,9 @@ class BaselineMomentumStrategy:
             max_slippage=0.01,
             reason=f"btc delta {delta:.5f}",
             created_at=context.now,
+            reason_code=(
+                "momentum_up" if action == DecisionAction.BUY_UP else "momentum_down"
+            ),
+            market_probability=market_probability,
+            edge=edge,
         )
