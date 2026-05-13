@@ -13,7 +13,15 @@ from polybot.config import (
     StakingSection,
     StrategySection,
 )
-from polybot.models import BotEvent, Decision, DecisionAction, FeedAggregate, FeedPrice, Market
+from polybot.models import (
+    BotEvent,
+    Decision,
+    DecisionAction,
+    FeedAggregate,
+    FeedPrice,
+    Market,
+    PaperTrade,
+)
 from polybot.state_store import StateStore
 
 
@@ -267,6 +275,43 @@ def test_state_store_records_full_decision_payload(tmp_path):
         "market_probability": None,
         "edge": None,
     }
+
+
+def test_state_store_records_and_lists_paper_trades(tmp_path):
+    store = StateStore(tmp_path / "bot.sqlite3")
+    store.initialize()
+    created_at = datetime(2026, 5, 13, 20, 20, tzinfo=UTC)
+    end_time = datetime(2026, 5, 13, 20, 25, tzinfo=UTC)
+    trade = PaperTrade(
+        id=None,
+        created_at=created_at,
+        event_slug="btc-updown-5m-1",
+        market_id="0xmarket",
+        token_id="up",
+        action="BUY_UP",
+        strategy="late_window_5m",
+        reason_code="late_window_high_confidence",
+        stake=5.0,
+        price=0.84,
+        shares=5.952381,
+        status="filled",
+        estimated_probability=0.86,
+        market_probability=0.84,
+        edge=0.02,
+        target_price=100.0,
+        btc_price_at_entry=100.2,
+        event_end_time=end_time,
+    )
+
+    trade_id = store.record_paper_trade(trade)
+
+    trades = store.list_paper_trades()
+    assert trade_id == 1
+    assert len(trades) == 1
+    assert trades[0]["id"] == 1
+    assert trades[0]["event_slug"] == "btc-updown-5m-1"
+    assert trades[0]["edge"] == 0.02
+    assert trades[0]["resolved_at"] is None
 
 
 def test_state_store_orders_snapshot_by_created_at_then_id(tmp_path):

@@ -122,6 +122,28 @@ class Decision:
 
 
 @dataclass(frozen=True)
+class PaperTrade:
+    id: int | None
+    created_at: datetime
+    event_slug: str
+    market_id: str
+    token_id: str
+    action: str
+    strategy: str
+    reason_code: str
+    stake: float
+    price: float
+    shares: float
+    status: str
+    estimated_probability: float | None
+    market_probability: float | None
+    edge: float | None
+    target_price: float
+    btc_price_at_entry: float
+    event_end_time: datetime
+
+
+@dataclass(frozen=True)
 class BotEvent:
     level: str
     message: str

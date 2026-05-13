@@ -5,7 +5,7 @@ import sqlite3
 from typing import Any
 
 from polybot.config import BotConfig
-from polybot.models import BotEvent, Decision, FeedAggregate, Market
+from polybot.models import BotEvent, Decision, FeedAggregate, Market, PaperTrade
 from polybot.strategies.base import classify_market_profile
 
 
@@ -90,6 +90,32 @@ class StateStore:
                     id INTEGER PRIMARY KEY CHECK (id = 1),
                     payload TEXT NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS paper_trades (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    created_at TEXT NOT NULL,
+                    event_slug TEXT NOT NULL,
+                    market_id TEXT NOT NULL,
+                    token_id TEXT NOT NULL,
+                    action TEXT NOT NULL,
+                    strategy TEXT NOT NULL,
+                    reason_code TEXT NOT NULL,
+                    stake REAL NOT NULL,
+                    price REAL NOT NULL,
+                    shares REAL NOT NULL,
+                    status TEXT NOT NULL,
+                    estimated_probability REAL,
+                    market_probability REAL,
+                    edge REAL,
+                    target_price REAL NOT NULL,
+                    btc_price_at_entry REAL NOT NULL,
+                    event_end_time TEXT NOT NULL,
+                    resolved_at TEXT,
+                    final_btc_price REAL,
+                    outcome TEXT,
+                    payout REAL,
+                    pnl REAL,
+                    pnl_pct REAL
+                );
                 """
             )
 
@@ -171,6 +197,46 @@ class StateStore:
             "delta_pct": delta_pct,
         }
         self._upsert_singleton_payload("feed_status", payload)
+
+    def record_paper_trade(self, trade: PaperTrade) -> int:
+        with self.connect() as conn:
+            cursor = conn.execute(
+                """
+                INSERT INTO paper_trades (
+                    created_at, event_slug, market_id, token_id, action, strategy, reason_code,
+                    stake, price, shares, status, estimated_probability, market_probability,
+                    edge, target_price, btc_price_at_entry, event_end_time
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    trade.created_at.isoformat(),
+                    trade.event_slug,
+                    trade.market_id,
+                    trade.token_id,
+                    trade.action,
+                    trade.strategy,
+                    trade.reason_code,
+                    trade.stake,
+                    trade.price,
+                    trade.shares,
+                    trade.status,
+                    trade.estimated_probability,
+                    trade.market_probability,
+                    trade.edge,
+                    trade.target_price,
+                    trade.btc_price_at_entry,
+                    trade.event_end_time.isoformat(),
+                ),
+            )
+            return int(cursor.lastrowid)
+
+    def list_paper_trades(self, limit: int = 100) -> list[dict[str, Any]]:
+        with self.connect() as conn:
+            rows = conn.execute(
+                "SELECT * FROM paper_trades ORDER BY created_at DESC, id DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
+        return [dict(row) for row in rows]
 
     def get_settings(self, default_config: BotConfig) -> dict[str, Any]:
         with self.connect() as conn:
