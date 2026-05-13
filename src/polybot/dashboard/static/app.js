@@ -25,6 +25,12 @@ const settingsStatus = document.querySelector("#settings-status");
 
 let currentSettings = {};
 
+function setText(element, value) {
+  if (element) {
+    element.textContent = value;
+  }
+}
+
 function formatCurrency(value, signed = false) {
   if (value === null || value === undefined || value === "") {
     return "-";
@@ -169,15 +175,19 @@ function renderDecisions(decisions) {
 
 function renderStrategyMetrics(decisions) {
   const latestDecision = (decisions || [])[0] || {};
-  strategyReasonCode.textContent = latestDecision.reason_code || "-";
-  strategyEdge.textContent =
+  setText(strategyReasonCode, latestDecision.reason_code || "-");
+  setText(
+    strategyEdge,
     latestDecision.edge === null || latestDecision.edge === undefined
       ? "-"
-      : Number(latestDecision.edge).toFixed(4);
-  strategyConfidence.textContent =
+      : Number(latestDecision.edge).toFixed(4),
+  );
+  setText(
+    strategyConfidence,
     latestDecision.confidence === null || latestDecision.confidence === undefined
       ? "-"
-      : `${(Number(latestDecision.confidence) * 100).toFixed(1)}%`;
+      : `${(Number(latestDecision.confidence) * 100).toFixed(1)}%`,
+  );
 }
 
 function renderEvents(events) {
