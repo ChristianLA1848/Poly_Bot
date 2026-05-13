@@ -31,6 +31,14 @@ class RiskSection(BaseModel):
     max_feed_deviation_bps: int = Field(ge=0)
     max_open_positions: int = Field(default=1, ge=0)
     max_open_orders: int = Field(default=2, ge=0)
+    max_trades_per_event: int = Field(default=1, ge=0)
+    max_event_exposure: float | None = Field(default=None, ge=0.0)
+
+    @model_validator(mode="after")
+    def default_event_exposure(self) -> "RiskSection":
+        if self.max_event_exposure is None:
+            self.max_event_exposure = self.max_stake
+        return self
 
 
 class StrategySection(BaseModel):

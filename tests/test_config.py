@@ -119,6 +119,17 @@ mode = "hold_to_resolution"
     assert any(error["loc"] == ("risk", "max_spread") for error in errors)
 
 
+def test_risk_config_accepts_event_trade_limits():
+    data = _valid_config_data()
+    data["risk"]["max_trades_per_event"] = 2
+    data["risk"]["max_event_exposure"] = 12.5
+
+    config = BotConfig.model_validate(data)
+
+    assert config.risk.max_trades_per_event == 2
+    assert config.risk.max_event_exposure == 12.5
+
+
 def test_strategy_config_accepts_new_strategy_names():
     base = _valid_config_data()
 
