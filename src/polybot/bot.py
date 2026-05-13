@@ -6,7 +6,14 @@ from typing import Any
 from polybot.audit_log import AuditLog
 from polybot.config import BotConfig
 from polybot.market_discovery import MarketDiscovery
-from polybot.models import BotEvent, DecisionAction, FeedAggregate, Market, OrderbookSnapshot
+from polybot.models import (
+    BotEvent,
+    DecisionAction,
+    FeedAggregate,
+    Market,
+    OrderbookSnapshot,
+    PaperTrade,
+)
 from polybot.orderbook import OrderbookClient
 from polybot.positions import PositionManager
 from polybot.risk import RiskGate
@@ -35,6 +42,7 @@ class BotRunner:
         self.store.initialize()
         self.positions = PositionManager()
         self.reference_start_price = reference_start_price
+        self._has_explicit_reference_start_price = reference_start_price is not None
         self.reference_market_slug: str | None = None
         self.latest_feed = latest_feed
         self.audit_log = AuditLog(audit_log_path) if audit_log_path is not None else None
@@ -78,7 +86,8 @@ class BotRunner:
             self.reference_market_slug = market.slug
             if market.price_to_beat is not None:
                 self.reference_start_price = market.price_to_beat
-            elif previous_market_slug is not None:
+                self._has_explicit_reference_start_price = False
+            elif previous_market_slug is not None and not self._has_explicit_reference_start_price:
                 self.reference_start_price = None
         if self.reference_start_price is None:
             self.reference_start_price = self.latest_feed.reference_price
@@ -138,7 +147,17 @@ class BotRunner:
             self._record_event("info", f"risk gate blocked: {risk_result.reason}", now)
             return
 
+        event_trade_count = self.store.count_paper_trades_for_event(market.slug)
+        if event_trade_count >= self.config.risk.max_trades_per_event:
+            self._record_event("info", "risk gate blocked: event_trade_limit_reached", now)
+            return
+
         stake = calculate_stake(self.config.staking, decision, self.config.risk.max_stake)
+        event_exposure = self.store.paper_event_exposure(market.slug)
+        if event_exposure + stake > self.config.risk.max_event_exposure:
+            self._record_event("info", "risk gate blocked: event_exposure_limit_reached", now)
+            return
+
         if self.execution is None:
             self._record_event("error", "execution engine missing", now)
             return
@@ -161,6 +180,29 @@ class BotRunner:
                 result["shares"],
                 result["price"],
             )
+            if result.get("mode") == "paper":
+                self.store.record_paper_trade(
+                    PaperTrade(
+                        id=None,
+                        created_at=now,
+                        event_slug=market.slug,
+                        market_id=result["market_id"],
+                        token_id=result["token_id"],
+                        action=decision.action.value,
+                        strategy=decision.strategy,
+                        reason_code=decision.reason_code,
+                        stake=result["stake"],
+                        price=result["price"],
+                        shares=result["shares"],
+                        status=result["status"],
+                        estimated_probability=decision.estimated_probability,
+                        market_probability=decision.market_probability,
+                        edge=decision.edge,
+                        target_price=self.reference_start_price,
+                        btc_price_at_entry=self.latest_feed.reference_price,
+                        event_end_time=market.end_time,
+                    )
+                )
         self._record_event("info", f"order result: {result.get('status')}", now)
 
     def _record_event(self, level: str, message: str, created_at: datetime) -> None:

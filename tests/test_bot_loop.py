@@ -81,6 +81,7 @@ class FakeExecution:
     async def place_order(self, decision, stake):
         self.orders.append((decision, stake))
         return {
+            "mode": "paper",
             "status": "filled",
             "shares": stake / decision.target_price,
             "stake": stake,
@@ -104,6 +105,7 @@ def _config(max_spread: float = 0.04) -> BotConfig:
             min_edge=0.03,
             max_feed_age_ms=2500,
             max_feed_deviation_bps=20,
+            max_open_positions=10,
         ),
         strategy=StrategySection(name="baseline_momentum"),
         staking=StakingSection(mode="fixed", fixed_stake=5),
@@ -168,6 +170,76 @@ async def test_bot_runner_single_cycle_places_paper_order(tmp_path):
     assert decision.token_id == "up"
     assert stake == 5
     assert runner.positions.open_positions_count() == 1
+
+
+@pytest.mark.asyncio
+async def test_bot_runner_blocks_second_trade_in_same_event(tmp_path):
+    execution = FakeExecution()
+    runner = BotRunner(
+        config=_config(),
+        market_discovery=FakeMarketDiscovery(),
+        orderbook_client=FakeOrderbookClient(),
+        execution=execution,
+        store_path=tmp_path / "bot.sqlite3",
+        reference_start_price=100.0,
+        latest_feed=_feed(),
+    )
+
+    await runner.run_once(now=datetime(2026, 5, 12, 21, 3, tzinfo=UTC))
+    await runner.run_once(now=datetime(2026, 5, 12, 21, 3, 30, tzinfo=UTC))
+
+    snapshot = runner.store.dashboard_snapshot()
+    assert len(execution.orders) == 1
+    assert snapshot["recent_events"][0]["message"] == (
+        "risk gate blocked: event_trade_limit_reached"
+    )
+
+
+@pytest.mark.asyncio
+async def test_bot_runner_allows_trade_in_different_event(tmp_path):
+    now = datetime(2026, 5, 12, 21, 0, tzinfo=UTC)
+    first_market = Market(
+        "m1",
+        "Bitcoin Up or Down",
+        "slug-1",
+        "up",
+        "down",
+        now,
+        now + timedelta(minutes=5),
+        0.01,
+        5.0,
+        True,
+    )
+    second_market = Market(
+        "m2",
+        "Bitcoin Up or Down",
+        "slug-2",
+        "up",
+        "down",
+        now + timedelta(minutes=5),
+        now + timedelta(minutes=10),
+        0.01,
+        5.0,
+        True,
+    )
+    market_discovery = FakeMarketDiscovery(market=first_market)
+    execution = FakeExecution()
+    runner = BotRunner(
+        config=_config(),
+        market_discovery=market_discovery,
+        orderbook_client=FakeOrderbookClient(),
+        execution=execution,
+        store_path=tmp_path / "bot.sqlite3",
+        reference_start_price=100.0,
+        latest_feed=_feed(),
+    )
+
+    await runner.run_once(now=datetime(2026, 5, 12, 21, 3, tzinfo=UTC))
+    market_discovery.market = second_market
+    runner.latest_feed = _feed()
+    await runner.run_once(now=datetime(2026, 5, 12, 21, 8, tzinfo=UTC))
+
+    assert len(execution.orders) == 2
 
 
 @pytest.mark.asyncio

@@ -314,6 +314,38 @@ def test_state_store_records_and_lists_paper_trades(tmp_path):
     assert trades[0]["resolved_at"] is None
 
 
+def test_state_store_counts_event_trades_and_exposure(tmp_path):
+    store = StateStore(tmp_path / "bot.sqlite3")
+    store.initialize()
+    created_at = datetime(2026, 5, 13, 20, 20, tzinfo=UTC)
+    end_time = datetime(2026, 5, 13, 20, 25, tzinfo=UTC)
+    trade = PaperTrade(
+        None,
+        created_at,
+        "slug-1",
+        "0xmarket",
+        "up",
+        "BUY_UP",
+        "baseline_momentum",
+        "momentum_up",
+        5.0,
+        0.5,
+        10.0,
+        "filled",
+        0.7,
+        0.5,
+        0.2,
+        100.0,
+        101.0,
+        end_time,
+    )
+
+    store.record_paper_trade(trade)
+
+    assert store.count_paper_trades_for_event("slug-1") == 1
+    assert store.paper_event_exposure("slug-1") == 5.0
+
+
 def test_state_store_orders_snapshot_by_created_at_then_id(tmp_path):
     store = StateStore(tmp_path / "bot.sqlite3")
     store.initialize()

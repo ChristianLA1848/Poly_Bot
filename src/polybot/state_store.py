@@ -238,6 +238,26 @@ class StateStore:
             ).fetchall()
         return [dict(row) for row in rows]
 
+    def count_paper_trades_for_event(self, event_slug: str) -> int:
+        with self.connect() as conn:
+            row = conn.execute(
+                "SELECT COUNT(*) AS count FROM paper_trades WHERE event_slug = ? AND status = 'filled'",
+                (event_slug,),
+            ).fetchone()
+        return int(row["count"])
+
+    def paper_event_exposure(self, event_slug: str) -> float:
+        with self.connect() as conn:
+            row = conn.execute(
+                """
+                SELECT COALESCE(SUM(stake), 0) AS exposure
+                FROM paper_trades
+                WHERE event_slug = ? AND status = 'filled' AND resolved_at IS NULL
+                """,
+                (event_slug,),
+            ).fetchone()
+        return float(row["exposure"])
+
     def get_settings(self, default_config: BotConfig) -> dict[str, Any]:
         with self.connect() as conn:
             row = conn.execute("SELECT payload FROM settings WHERE id = 1").fetchone()
