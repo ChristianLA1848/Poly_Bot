@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from typing import Any
 
@@ -48,7 +49,7 @@ def create_dashboard_app(
         try:
             config = BotConfig.model_validate(payload)
         except ValidationError as exc:
-            raise HTTPException(status_code=422, detail=exc.errors()) from exc
+            raise HTTPException(status_code=422, detail=json.loads(exc.json())) from exc
         store.record_settings(config)
         return config.model_dump(mode="json")
 

@@ -101,6 +101,22 @@ def test_dashboard_settings_reject_invalid_payload(tmp_path):
     assert response.status_code == 422
 
 
+def test_dashboard_settings_reject_invalid_late_window_with_json_response(tmp_path):
+    store = StateStore(tmp_path / "bot.sqlite3")
+    store.initialize()
+    cfg = dashboard_config_for_test()
+    app = create_dashboard_app(store, default_config=cfg, control_service=None)
+    client = TestClient(app)
+    settings = cfg.model_dump(mode="json")
+    settings["late_window"]["min_seconds_remaining"] = 60
+    settings["late_window"]["max_seconds_remaining"] = 20
+
+    response = client.put("/api/settings", json=settings)
+
+    assert response.status_code == 422
+    assert response.json()["detail"]
+
+
 def test_dashboard_start_stop_routes_call_control_service(tmp_path):
     class FakeControl:
         async def start(self):
