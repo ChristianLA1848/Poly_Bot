@@ -346,6 +346,69 @@ def test_state_store_counts_event_trades_and_exposure(tmp_path):
     assert store.paper_event_exposure("slug-1") == 5.0
 
 
+def test_state_store_evaluates_paper_trade_win_and_loss(tmp_path):
+    store = StateStore(tmp_path / "bot.sqlite3")
+    store.initialize()
+    created_at = datetime(2026, 5, 13, 20, 20, tzinfo=UTC)
+    end_time = datetime(2026, 5, 13, 20, 25, tzinfo=UTC)
+    up_trade = PaperTrade(
+        None,
+        created_at,
+        "slug-1",
+        "0xmarket",
+        "up",
+        "BUY_UP",
+        "late_window_5m",
+        "late_window_high_confidence",
+        5.0,
+        0.5,
+        10.0,
+        "filled",
+        0.7,
+        0.5,
+        0.2,
+        100.0,
+        101.0,
+        end_time,
+    )
+    down_trade = PaperTrade(
+        None,
+        created_at,
+        "slug-1",
+        "0xmarket",
+        "down",
+        "BUY_DOWN",
+        "late_window_5m",
+        "late_window_high_confidence",
+        5.0,
+        0.5,
+        10.0,
+        "filled",
+        0.7,
+        0.5,
+        0.2,
+        100.0,
+        99.0,
+        end_time,
+    )
+    store.record_paper_trade(up_trade)
+    store.record_paper_trade(down_trade)
+
+    evaluated = store.evaluate_open_paper_trades(
+        now=datetime(2026, 5, 13, 20, 26, tzinfo=UTC),
+        final_btc_price=101.0,
+    )
+
+    trades = sorted(store.list_paper_trades(), key=lambda row: row["id"])
+    assert evaluated == 2
+    assert trades[0]["outcome"] == "win"
+    assert trades[0]["payout"] == 10.0
+    assert trades[0]["pnl"] == 5.0
+    assert trades[1]["outcome"] == "loss"
+    assert trades[1]["payout"] == 0.0
+    assert trades[1]["pnl"] == -5.0
+
+
 def test_state_store_orders_snapshot_by_created_at_then_id(tmp_path):
     store = StateStore(tmp_path / "bot.sqlite3")
     store.initialize()

@@ -258,6 +258,49 @@ class StateStore:
             ).fetchone()
         return float(row["exposure"])
 
+    def evaluate_open_paper_trades(self, now: datetime, final_btc_price: float) -> int:
+        with self.connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT * FROM paper_trades
+                WHERE resolved_at IS NULL
+                  AND status = 'filled'
+                  AND event_end_time <= ?
+                ORDER BY event_end_time ASC, id ASC
+                """,
+                (now.isoformat(),),
+            ).fetchall()
+            for row in rows:
+                action = row["action"]
+                target_price = float(row["target_price"])
+                shares = float(row["shares"])
+                stake = float(row["stake"])
+                won = (
+                    final_btc_price >= target_price
+                    if action == "BUY_UP"
+                    else final_btc_price < target_price
+                )
+                payout = round(shares * 1.0, 6) if won else 0.0
+                pnl = round(payout - stake, 6)
+                pnl_pct = round(pnl / stake, 6) if stake > 0 else None
+                conn.execute(
+                    """
+                    UPDATE paper_trades
+                    SET resolved_at = ?, final_btc_price = ?, outcome = ?, payout = ?, pnl = ?, pnl_pct = ?
+                    WHERE id = ?
+                    """,
+                    (
+                        now.isoformat(),
+                        final_btc_price,
+                        "win" if won else "loss",
+                        payout,
+                        pnl,
+                        pnl_pct,
+                        row["id"],
+                    ),
+                )
+        return len(rows)
+
     def get_settings(self, default_config: BotConfig) -> dict[str, Any]:
         with self.connect() as conn:
             row = conn.execute("SELECT payload FROM settings WHERE id = 1").fetchone()

@@ -64,6 +64,7 @@ class BotRunner:
             self._record_event("warning", "no feed aggregate available", now)
             return
 
+        self.store.evaluate_open_paper_trades(now, self.latest_feed.reference_price)
         self.store.record_feed_status(self.latest_feed, self.reference_start_price)
         market = await self.market_discovery.find_btc_5m_market()
         if market is None:

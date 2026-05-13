@@ -437,6 +437,45 @@ async def test_bot_runner_records_warning_when_market_missing(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_bot_runner_evaluates_open_paper_trades(tmp_path):
+    runner = BotRunner(
+        config=_config(),
+        market_discovery=FakeMarketDiscovery(market=None),
+        orderbook_client=FakeOrderbookClient(),
+        execution=FakeExecution(),
+        store_path=tmp_path / "bot.sqlite3",
+        latest_feed=_feed(),
+    )
+    end_time = datetime(2026, 5, 12, 21, 1, tzinfo=UTC)
+    runner.store.record_paper_trade(
+        PaperTrade(
+            None,
+            datetime(2026, 5, 12, 21, 0, tzinfo=UTC),
+            "old-slug",
+            "m",
+            "up",
+            "BUY_UP",
+            "baseline_momentum",
+            "momentum_up",
+            5.0,
+            0.5,
+            10.0,
+            "filled",
+            0.7,
+            0.5,
+            0.2,
+            100.0,
+            100.5,
+            end_time,
+        )
+    )
+
+    await runner.run_once(now=datetime(2026, 5, 12, 21, 3, tzinfo=UTC))
+
+    assert runner.store.list_paper_trades()[0]["outcome"] == "win"
+
+
+@pytest.mark.asyncio
 async def test_bot_runner_records_warning_when_market_not_accepting_orders(tmp_path):
     now = datetime(2026, 5, 12, 21, 0, tzinfo=UTC)
     market = Market(
