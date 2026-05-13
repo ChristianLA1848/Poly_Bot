@@ -39,6 +39,29 @@ function setRuntimeStatus(status) {
   statusPill.textContent = status;
 }
 
+function setControlBusy(isBusy) {
+  startBotButton.disabled = isBusy;
+  stopBotButton.disabled = isBusy;
+}
+
+async function errorDetail(response, fallback) {
+  try {
+    const payload = await response.json();
+    if (typeof payload.detail === "string") {
+      return payload.detail;
+    }
+    if (Array.isArray(payload.detail) && payload.detail.length > 0) {
+      return payload.detail
+        .map((item) => item.msg || item.message || JSON.stringify(item))
+        .join("; ");
+    }
+  } catch {
+    return fallback;
+  }
+
+  return fallback;
+}
+
 function getNested(source, path) {
   return path.split(".").reduce((value, key) => value?.[key], source);
 }
@@ -219,9 +242,11 @@ async function loadSettings() {
 for (const tab of document.querySelectorAll("[data-tab-target]")) {
   tab.addEventListener("click", () => {
     const target = tab.dataset.tabTarget;
-    document
-      .querySelectorAll("[data-tab-target]")
-      .forEach((item) => item.classList.toggle("is-active", item === tab));
+    document.querySelectorAll("[data-tab-target]").forEach((item) => {
+      const isActive = item === tab;
+      item.classList.toggle("is-active", isActive);
+      item.setAttribute("aria-selected", String(isActive));
+    });
     document
       .querySelectorAll("[data-tab-panel]")
       .forEach((panel) => panel.classList.toggle("is-active", panel.dataset.tabPanel === target));
@@ -229,26 +254,36 @@ for (const tab of document.querySelectorAll("[data-tab-target]")) {
 }
 
 startBotButton.addEventListener("click", async () => {
+  setControlBusy(true);
+
   try {
     const response = await fetch("/api/bot/start", { method: "POST" });
     if (!response.ok) {
-      throw new Error(`Start request failed: ${response.status}`);
+      throw new Error(await errorDetail(response, `Start request failed: ${response.status}`));
     }
     await refreshSnapshot();
-  } catch {
-    setRuntimeStatus("error");
+  } catch (error) {
+    statusValue.textContent = error.message;
+    statusPill.textContent = "error";
+  } finally {
+    setControlBusy(false);
   }
 });
 
 stopBotButton.addEventListener("click", async () => {
+  setControlBusy(true);
+
   try {
     const response = await fetch("/api/bot/stop", { method: "POST" });
     if (!response.ok) {
-      throw new Error(`Stop request failed: ${response.status}`);
+      throw new Error(await errorDetail(response, `Stop request failed: ${response.status}`));
     }
     await refreshSnapshot();
-  } catch {
-    setRuntimeStatus("error");
+  } catch (error) {
+    statusValue.textContent = error.message;
+    statusPill.textContent = "error";
+  } finally {
+    setControlBusy(false);
   }
 });
 
@@ -263,13 +298,13 @@ settingsForm.addEventListener("submit", async (event) => {
       body: JSON.stringify(settingsFromForm()),
     });
     if (!response.ok) {
-      throw new Error(`Settings request failed: ${response.status}`);
+      throw new Error(await errorDetail(response, `Settings request failed: ${response.status}`));
     }
 
     renderSettings(await response.json());
     settingsStatus.textContent = "Saved for next start.";
-  } catch {
-    settingsStatus.textContent = "Save failed.";
+  } catch (error) {
+    settingsStatus.textContent = error.message;
   }
 });
 

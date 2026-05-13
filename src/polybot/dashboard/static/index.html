@@ -16,13 +16,49 @@
         <div class="status-pill" id="bot-status">ready</div>
       </header>
 
-      <nav class="tabs" aria-label="Dashboard tabs">
-        <button class="tab is-active" type="button" data-tab-target="monitor">Monitor</button>
-        <button class="tab" type="button" data-tab-target="settings">Settings</button>
-        <button class="tab" type="button" data-tab-target="logs">Logs</button>
+      <nav class="tabs" role="tablist" aria-label="Dashboard tabs">
+        <button
+          class="tab is-active"
+          type="button"
+          id="monitor-tab"
+          role="tab"
+          aria-selected="true"
+          aria-controls="monitor-panel"
+          data-tab-target="monitor"
+        >
+          Monitor
+        </button>
+        <button
+          class="tab"
+          type="button"
+          id="settings-tab"
+          role="tab"
+          aria-selected="false"
+          aria-controls="settings-panel"
+          data-tab-target="settings"
+        >
+          Settings
+        </button>
+        <button
+          class="tab"
+          type="button"
+          id="logs-tab"
+          role="tab"
+          aria-selected="false"
+          aria-controls="logs-panel"
+          data-tab-target="logs"
+        >
+          Logs
+        </button>
       </nav>
 
-      <section class="tab-panel is-active" data-tab-panel="monitor">
+      <section
+        class="tab-panel is-active"
+        id="monitor-panel"
+        role="tabpanel"
+        aria-labelledby="monitor-tab"
+        data-tab-panel="monitor"
+      >
         <section class="metrics" aria-label="Bot metrics">
           <article class="metric">
             <span>Status</span>
@@ -89,7 +125,13 @@
         </section>
       </section>
 
-      <section class="tab-panel" data-tab-panel="settings">
+      <section
+        class="tab-panel"
+        id="settings-panel"
+        role="tabpanel"
+        aria-labelledby="settings-tab"
+        data-tab-panel="settings"
+      >
         <form class="settings-form" id="settings-form">
           <label>
             <span>Bot Mode</span>
@@ -100,7 +142,7 @@
           </label>
           <label>
             <span>Cycle Seconds</span>
-            <input type="number" name="bot.cycle_seconds" min="0" step="0.01" />
+            <input type="number" name="bot.cycle_seconds" min="0.01" step="0.01" />
           </label>
           <label>
             <span>Strategy</span>
@@ -127,11 +169,11 @@
           </label>
           <label>
             <span>Max Stake</span>
-            <input type="number" name="risk.max_stake" min="0" step="0.01" />
+            <input type="number" name="risk.max_stake" min="0.01" step="0.01" />
           </label>
           <label>
             <span>Max Daily Loss</span>
-            <input type="number" name="risk.max_daily_loss" min="0" step="0.01" />
+            <input type="number" name="risk.max_daily_loss" min="0.01" step="0.01" />
           </label>
           <label>
             <span>Max Spread</span>
@@ -139,7 +181,7 @@
           </label>
           <label>
             <span>Min Liquidity</span>
-            <input type="number" name="risk.min_liquidity" min="0" step="0.01" />
+            <input type="number" name="risk.min_liquidity" min="0.01" step="0.01" />
           </label>
           <label>
             <span>Min Edge</span>
@@ -147,7 +189,7 @@
           </label>
           <label>
             <span>Max Feed Age</span>
-            <input type="number" name="risk.max_feed_age_ms" min="0" step="1" />
+            <input type="number" name="risk.max_feed_age_ms" min="1" step="1" />
           </label>
           <label>
             <span>Max Feed Deviation</span>
@@ -188,7 +230,13 @@
         </form>
       </section>
 
-      <section class="tab-panel" data-tab-panel="logs">
+      <section
+        class="tab-panel"
+        id="logs-panel"
+        role="tabpanel"
+        aria-labelledby="logs-tab"
+        data-tab-panel="logs"
+      >
         <section class="grid">
           <article class="panel">
             <div class="panel-heading">

@@ -158,10 +158,18 @@ def test_dashboard_root_contains_tabs_controls_and_settings(tmp_path):
     assert 'data-tab-target="monitor"' in html
     assert 'data-tab-target="settings"' in html
     assert 'data-tab-target="logs"' in html
+    assert 'role="tablist"' in html
+    assert 'role="tab"' in html
+    assert 'role="tabpanel"' in html
+    assert 'aria-selected="true"' in html
+    assert 'aria-controls="monitor-panel"' in html
     assert 'id="start-bot"' in html
     assert 'id="stop-bot"' in html
     assert 'id="btc-price"' in html
     assert 'id="target-price"' in html
     assert 'name="bot.mode"' in html
+    assert 'name="bot.cycle_seconds" min="0.01"' in html
     assert 'name="strategy.name"' in html
     assert 'name="staking.mode"' in html
+    assert 'name="risk.max_stake" min="0.01"' in html
+    assert 'name="risk.max_feed_age_ms" min="1"' in html
