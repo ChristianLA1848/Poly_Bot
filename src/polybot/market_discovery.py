@@ -1,5 +1,7 @@
-from datetime import datetime
+from collections.abc import Callable
+from datetime import UTC, datetime, timedelta
 import json
+import re
 from typing import Any
 
 import httpx
@@ -7,6 +9,9 @@ import httpx
 from polybot.models import Market
 
 GAMMA_BASE_URL = "https://gamma-api.polymarket.com"
+BTC_5M_SLUG_PREFIX = "btc-updown-5m-"
+BTC_5M_WINDOW_SECONDS = 5 * 60
+BTC_5M_SLUG_RE = re.compile(r"^btc-updown-5m-(?P<timestamp>\d+)$")
 
 
 def _loads_list(value: Any, *, field: str) -> list[str]:
@@ -33,6 +38,32 @@ def _parse_dt(value: str) -> datetime:
     return datetime.fromisoformat(value.replace("Z", "+00:00"))
 
 
+def current_btc_5m_slug(now: datetime | None = None) -> str:
+    current = now or datetime.now(tz=UTC)
+    if current.tzinfo is None:
+        current = current.replace(tzinfo=UTC)
+    timestamp = int(current.timestamp())
+    window_start = timestamp - (timestamp % BTC_5M_WINDOW_SECONDS)
+    return f"{BTC_5M_SLUG_PREFIX}{window_start}"
+
+
+def _window_from_slug(slug: str) -> tuple[datetime, datetime] | None:
+    match = BTC_5M_SLUG_RE.match(slug)
+    if match is None:
+        return None
+
+    start = datetime.fromtimestamp(int(match.group("timestamp")), tz=UTC)
+    return start, start + timedelta(seconds=BTC_5M_WINDOW_SECONDS)
+
+
+def _payload_time(payload: dict[str, Any], *fields: str) -> datetime:
+    for field in fields:
+        value = payload.get(field)
+        if value:
+            return _parse_dt(value)
+    raise ValueError(f"payload must include one of: {', '.join(fields)}")
+
+
 def parse_btc_market(payload: dict[str, Any]) -> Market:
     outcomes = [outcome.strip().lower() for outcome in _loads_list(payload["outcomes"], field="outcomes")]
     token_ids = _loads_list(payload["clobTokenIds"], field="clobTokenIds")
@@ -44,14 +75,25 @@ def parse_btc_market(payload: dict[str, Any]) -> Market:
     if "up" not in token_by_outcome or "down" not in token_by_outcome:
         raise ValueError("outcomes must include Up and Down")
 
+    slug = payload.get("slug") or ""
+    slug_window = _window_from_slug(slug)
+    start_time, end_time = (
+        slug_window
+        if slug_window is not None
+        else (
+            _parse_dt(payload["startDateIso"]) if payload.get("startDateIso") else None,
+            _payload_time(payload, "endDate", "endDateIso"),
+        )
+    )
+
     return Market(
         market_id=payload["conditionId"],
         question=payload.get("question") or "",
-        slug=payload.get("slug") or "",
+        slug=slug,
         up_token_id=token_by_outcome["up"],
         down_token_id=token_by_outcome["down"],
-        start_time=_parse_dt(payload["startDateIso"]) if payload.get("startDateIso") else None,
-        end_time=_parse_dt(payload["endDateIso"]),
+        start_time=start_time,
+        end_time=end_time,
         tick_size=float(payload.get("orderPriceMinTickSize") or 0.01),
         min_size=float(payload.get("orderMinSize") or 5.0),
         accepting_orders=bool(payload.get("acceptingOrders")),
@@ -81,9 +123,14 @@ def _select_best_market(items: list[dict[str, Any]]) -> Market | None:
 
 
 class MarketDiscovery:
-    def __init__(self, client: httpx.AsyncClient | None = None):
+    def __init__(
+        self,
+        client: httpx.AsyncClient | None = None,
+        now_provider: Callable[[], datetime] | None = None,
+    ):
         self._owns_client = client is None
         self.client = client or httpx.AsyncClient(base_url=GAMMA_BASE_URL, timeout=10.0)
+        self.now_provider = now_provider or (lambda: datetime.now(tz=UTC))
 
     async def __aenter__(self) -> "MarketDiscovery":
         return self
@@ -99,27 +146,10 @@ class MarketDiscovery:
         response = await self.client.get(
             "/markets",
             params={
+                "slug": current_btc_5m_slug(self.now_provider()),
                 "closed": "false",
-                "active": "true",
-                "limit": 100,
-                "order": "endDate",
-                "ascending": "true",
             },
         )
         response.raise_for_status()
 
-        market = _select_best_market(response.json())
-        if market is not None:
-            return market
-
-        search_response = await self.client.get(
-            "/public-search",
-            params={
-                "q": "Bitcoin Up or Down",
-                "limit_per_type": 10,
-                "events_status": "active",
-                "keep_closed_markets": 0,
-            },
-        )
-        search_response.raise_for_status()
-        return _select_best_market(_extract_public_search_markets(search_response.json()))
+        return _select_best_market(response.json())

@@ -1,7 +1,8 @@
 import pytest
+from datetime import UTC, datetime
 
 from polybot import market_discovery
-from polybot.market_discovery import parse_btc_market
+from polybot.market_discovery import current_btc_5m_slug, parse_btc_market
 
 
 BASE_MARKET_PAYLOAD = {
@@ -27,6 +28,26 @@ def test_parse_btc_market_extracts_tokens():
     assert market.down_token_id == "222"
     assert market.tick_size == 0.01
     assert market.accepting_orders is True
+
+
+def test_current_btc_5m_slug_uses_current_utc_window():
+    now = datetime(2026, 5, 13, 16, 39, 14, tzinfo=UTC)
+
+    assert current_btc_5m_slug(now) == "btc-updown-5m-1778690100"
+
+
+def test_parse_btc_market_derives_window_from_btc_slug():
+    payload = BASE_MARKET_PAYLOAD | {
+        "slug": "btc-updown-5m-1778690100",
+        "startDateIso": "2026-05-12",
+        "endDateIso": "2026-05-13",
+        "endDate": "2026-05-13T16:40:00Z",
+    }
+
+    market = parse_btc_market(payload)
+
+    assert market.start_time == datetime(2026, 5, 13, 16, 35, tzinfo=UTC)
+    assert market.end_time == datetime(2026, 5, 13, 16, 40, tzinfo=UTC)
 
 
 def test_parse_btc_market_accepts_native_list_fields():
@@ -144,6 +165,18 @@ class FakeDiscoveryClient:
         return FakeResponse(self.payloads[path])
 
 
+class FakeRoutingClient:
+    def __init__(self, routes):
+        self.routes = routes
+        self.requests = []
+
+    async def get(self, path, params=None):
+        params = params or {}
+        self.requests.append((path, params))
+        key = (path, params.get("slug"))
+        return FakeResponse(self.routes.get(key, []))
+
+
 @pytest.mark.asyncio
 async def test_market_discovery_finds_btc_updown_slug():
     payload = [
@@ -159,6 +192,43 @@ async def test_market_discovery_finds_btc_updown_slug():
 
     assert market is not None
     assert market.slug == "btc-updown-5m-1778646600"
+
+
+@pytest.mark.asyncio
+async def test_market_discovery_fetches_current_window_by_slug():
+    current_payload = BASE_MARKET_PAYLOAD | {
+        "question": "Bitcoin Up or Down - May 13, 12:35PM-12:40PM ET",
+        "slug": "btc-updown-5m-1778690100",
+        "acceptingOrders": True,
+        "enableOrderBook": True,
+        "liquidity": "20484.0386",
+        "startDateIso": "2026-05-12",
+        "endDateIso": "2026-05-13",
+        "endDate": "2026-05-13T16:40:00Z",
+    }
+    stale_payload = BASE_MARKET_PAYLOAD | {
+        "slug": "btc-updown-5m-1766162100",
+        "acceptingOrders": False,
+    }
+    client = FakeRoutingClient(
+        {
+            ("/markets", "btc-updown-5m-1778690100"): [current_payload],
+            ("/markets", None): [stale_payload],
+        }
+    )
+    discovery = market_discovery.MarketDiscovery(
+        client=client,
+        now_provider=lambda: datetime(2026, 5, 13, 16, 39, 14, tzinfo=UTC),
+    )
+
+    market = await discovery.find_btc_5m_market()
+
+    assert market is not None
+    assert market.slug == "btc-updown-5m-1778690100"
+    assert market.accepting_orders is True
+    assert client.requests == [
+        ("/markets", {"slug": "btc-updown-5m-1778690100", "closed": "false"})
+    ]
 
 
 @pytest.mark.asyncio
@@ -203,21 +273,20 @@ async def test_market_discovery_prefers_accepting_order_market():
 
 
 @pytest.mark.asyncio
-async def test_market_discovery_uses_public_search_fallback():
-    search_market = BASE_MARKET_PAYLOAD | {
-        "slug": "btc-updown-5m-1778646600",
-        "acceptingOrders": True,
-    }
+async def test_market_discovery_returns_none_when_current_window_missing():
     client = FakeDiscoveryClient(
         {
             "/markets": [],
-            "/public-search": {"events": [{"markets": [search_market]}]},
         }
     )
-    discovery = market_discovery.MarketDiscovery(client=client)
+    discovery = market_discovery.MarketDiscovery(
+        client=client,
+        now_provider=lambda: datetime(2026, 5, 13, 16, 39, 14, tzinfo=UTC),
+    )
 
     market = await discovery.find_btc_5m_market()
 
-    assert market is not None
-    assert market.slug == "btc-updown-5m-1778646600"
-    assert [request[0] for request in client.requests] == ["/markets", "/public-search"]
+    assert market is None
+    assert client.requests == [
+        ("/markets", {"slug": "btc-updown-5m-1778690100", "closed": "false"})
+    ]
