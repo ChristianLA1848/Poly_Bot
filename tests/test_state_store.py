@@ -1,6 +1,8 @@
 from datetime import UTC, datetime
 import json
 
+import pytest
+
 from polybot.audit_log import AuditLog
 from polybot.config import (
     BotConfig,
@@ -177,6 +179,27 @@ def test_state_store_records_settings_payload(tmp_path):
     store.record_settings(payload)
 
     assert store.get_settings(cfg)["bot"]["mode"] == "live"
+
+
+def test_state_store_persists_settings_across_instances(tmp_path):
+    db_path = tmp_path / "bot.sqlite3"
+    store = StateStore(db_path)
+    store.initialize()
+    cfg = make_bot_config_for_test()
+    payload = cfg.model_copy(update={"bot": cfg.bot.model_copy(update={"mode": "live"})})
+
+    store.record_settings(payload)
+
+    next_store = StateStore(db_path)
+    assert next_store.get_settings(cfg)["bot"]["mode"] == "live"
+
+
+def test_state_store_rejects_unknown_singleton_table(tmp_path):
+    store = StateStore(tmp_path / "bot.sqlite3")
+    store.initialize()
+
+    with pytest.raises(ValueError, match="unknown singleton table"):
+        store._upsert_singleton_payload("decisions", {"state": "bad"})
 
 
 def test_state_store_rounds_feed_delta_to_six_decimals(tmp_path):

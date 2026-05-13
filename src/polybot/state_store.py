@@ -42,6 +42,9 @@ DEFAULT_FEED_STATUS = {
 }
 
 
+SINGLETON_TABLES = {"market_status", "runtime_status", "feed_status", "settings"}
+
+
 class StateStore:
     def __init__(self, db_path: str | Path):
         self.db_path = Path(db_path)
@@ -177,6 +180,9 @@ class StateStore:
         self._upsert_singleton_payload("settings", config.model_dump(mode="json"))
 
     def _upsert_singleton_payload(self, table: str, payload: dict[str, Any]) -> None:
+        if table not in SINGLETON_TABLES:
+            raise ValueError("unknown singleton table")
+
         with self.connect() as conn:
             conn.execute(
                 f"""
