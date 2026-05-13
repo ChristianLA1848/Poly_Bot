@@ -132,6 +132,23 @@ def test_state_store_records_feed_status_with_target_delta(tmp_path):
     }
 
 
+def test_state_store_rounds_feed_delta_to_six_decimals(tmp_path):
+    store = StateStore(tmp_path / "bot.sqlite3")
+    store.initialize()
+    created_at = datetime(2026, 5, 13, 8, 0, tzinfo=UTC)
+    feed = FeedAggregate(
+        reference_price=103250.1234567,
+        prices=[FeedPrice("coinbase", "BTC-USD", 103250.1234567, 1)],
+        max_deviation_bps=1.4,
+        fresh=True,
+        created_at=created_at,
+    )
+
+    store.record_feed_status(feed, target_price=103000.0)
+
+    assert store.dashboard_snapshot()["feed_status"]["delta"] == 250.123457
+
+
 def test_state_store_records_decision_and_event(tmp_path):
     store = StateStore(tmp_path / "bot.sqlite3")
     store.initialize()

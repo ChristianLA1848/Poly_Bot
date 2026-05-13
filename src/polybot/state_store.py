@@ -144,7 +144,11 @@ class StateStore:
         self._upsert_singleton_payload("runtime_status", payload)
 
     def record_feed_status(self, feed: FeedAggregate, target_price: float | None) -> None:
-        delta = feed.reference_price - target_price if target_price is not None else None
+        delta = (
+            round(feed.reference_price - target_price, 6)
+            if target_price is not None
+            else None
+        )
         delta_pct = round((delta / target_price) * 100, 6) if target_price else None
         payload = DEFAULT_FEED_STATUS | {
             "btc_price": feed.reference_price,
