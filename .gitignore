@@ -1,6 +1,7 @@
 .env
 configs/bot.local.toml
 .superpowers/
+.playwright-cli/
 data/
 __pycache__/
 .pytest_cache/
