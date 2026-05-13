@@ -84,6 +84,44 @@ def test_strategy_registry_lists_available_strategies():
     assert metadata["trend_following"].market_profiles == ("longer_crypto",)
 
 
+def test_trend_following_rejects_btc_5m_market():
+    decision = load_strategy("trend_following").decide(_context())
+
+    assert decision.action == DecisionAction.NO_TRADE
+    assert decision.reason_code == "trend_not_supported_for_market"
+
+
+def test_trend_following_buys_up_on_longer_market_momentum():
+    now = datetime(2026, 5, 12, 21, 0, tzinfo=UTC)
+    market = Market(
+        "m",
+        "Bitcoin Up or Down - 1h",
+        "btc-updown-1h",
+        "up",
+        "down",
+        now,
+        now + timedelta(hours=1),
+        0.01,
+        5.0,
+        True,
+    )
+
+    decision = load_strategy("trend_following").decide(
+        _context(
+            market=market,
+            reference=100.0,
+            price=101.5,
+            now=now + timedelta(minutes=10),
+            up_ask=0.58,
+        )
+    )
+
+    assert decision.action == DecisionAction.BUY_UP
+    assert decision.reason_code == "trend_confirmed"
+    assert decision.edge is not None
+    assert decision.edge > 0
+
+
 def test_late_window_alias_loads_late_window_5m_strategy():
     strategy = load_strategy("late_window")
 
