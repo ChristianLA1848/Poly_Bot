@@ -1,5 +1,6 @@
 .env
 configs/bot.local.toml
+.superpowers/
 data/
 __pycache__/
 .pytest_cache/
