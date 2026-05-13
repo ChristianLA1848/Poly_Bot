@@ -73,6 +73,42 @@ h2 {
   text-align: center;
 }
 
+.tabs {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 20px;
+}
+
+.tab {
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 12px 14px 10px;
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.tab:hover,
+.tab.is-active {
+  color: var(--accent);
+}
+
+.tab.is-active {
+  border-bottom-color: var(--accent);
+}
+
+.tab-panel {
+  display: none;
+}
+
+.tab-panel.is-active {
+  display: block;
+}
+
 .metrics,
 .market-panel,
 .grid {
@@ -81,7 +117,7 @@ h2 {
 }
 
 .metrics {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   margin-bottom: 16px;
 }
 
@@ -113,6 +149,84 @@ h2 {
 
 .metric strong {
   font-size: 1.7rem;
+}
+
+.controls {
+  display: flex;
+  flex-direction: column;
+}
+
+.button-row,
+.form-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+button {
+  min-height: 40px;
+}
+
+.primary-button,
+.secondary-button {
+  border-radius: 8px;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+  padding: 9px 14px;
+}
+
+.primary-button {
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.secondary-button {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.settings-form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 18px;
+}
+
+.settings-form label {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.settings-form label span,
+#settings-status {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.settings-form input,
+.settings-form select {
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--text);
+  font: inherit;
+  padding: 8px 10px;
+}
+
+.form-actions {
+  grid-column: 1 / -1;
+  padding-top: 4px;
 }
 
 .panel-heading {
@@ -226,8 +340,13 @@ h2 {
   .metrics,
   .grid,
   .row,
-  .market-details {
+  .market-details,
+  .settings-form {
     grid-template-columns: 1fr;
+  }
+
+  .tabs {
+    overflow-x: auto;
   }
 
   .market-details div,

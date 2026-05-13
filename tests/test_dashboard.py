@@ -145,3 +145,23 @@ def test_dashboard_snapshot_includes_settings_when_default_config_supplied(tmp_p
 
     assert response.status_code == 200
     assert response.json()["settings"] == cfg.model_dump(mode="json")
+
+
+def test_dashboard_root_contains_tabs_controls_and_settings(tmp_path):
+    store = StateStore(tmp_path / "bot.sqlite3")
+    store.initialize()
+    app = create_dashboard_app(store, dashboard_config_for_test(), control_service=None)
+    client = TestClient(app)
+
+    html = client.get("/").text
+
+    assert 'data-tab-target="monitor"' in html
+    assert 'data-tab-target="settings"' in html
+    assert 'data-tab-target="logs"' in html
+    assert 'id="start-bot"' in html
+    assert 'id="stop-bot"' in html
+    assert 'id="btc-price"' in html
+    assert 'id="target-price"' in html
+    assert 'name="bot.mode"' in html
+    assert 'name="strategy.name"' in html
+    assert 'name="staking.mode"' in html

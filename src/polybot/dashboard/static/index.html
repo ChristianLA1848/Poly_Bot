@@ -16,68 +16,196 @@
         <div class="status-pill" id="bot-status">ready</div>
       </header>
 
-      <section class="metrics" aria-label="Bot metrics">
-        <article class="metric">
-          <span>Status</span>
-          <strong id="status-value">ready</strong>
-        </article>
-        <article class="metric">
-          <span>Today P/L</span>
-          <strong id="pnl-value">$0.00</strong>
-        </article>
+      <nav class="tabs" aria-label="Dashboard tabs">
+        <button class="tab is-active" type="button" data-tab-target="monitor">Monitor</button>
+        <button class="tab" type="button" data-tab-target="settings">Settings</button>
+        <button class="tab" type="button" data-tab-target="logs">Logs</button>
+      </nav>
+
+      <section class="tab-panel is-active" data-tab-panel="monitor">
+        <section class="metrics" aria-label="Bot metrics">
+          <article class="metric">
+            <span>Status</span>
+            <strong id="status-value">ready</strong>
+          </article>
+          <article class="metric">
+            <span>Today P/L</span>
+            <strong id="pnl-value">$0.00</strong>
+          </article>
+          <article class="metric">
+            <span>BTC Price</span>
+            <strong id="btc-price">-</strong>
+          </article>
+          <article class="metric">
+            <span>Target Price</span>
+            <strong id="target-price">-</strong>
+          </article>
+          <article class="metric">
+            <span>Delta</span>
+            <strong id="target-delta">-</strong>
+          </article>
+          <article class="metric controls">
+            <span>Bot Control</span>
+            <div class="button-row">
+              <button class="primary-button" type="button" id="start-bot">Start</button>
+              <button class="secondary-button" type="button" id="stop-bot">Stop</button>
+            </div>
+          </article>
+        </section>
+
+        <section class="market-panel" aria-label="Market status">
+          <article class="panel">
+            <div class="panel-heading">
+              <h2>Market Status</h2>
+              <span id="market-state">unknown</span>
+            </div>
+            <dl class="market-details">
+              <div>
+                <dt>Message</dt>
+                <dd id="market-message">No market checked yet.</dd>
+              </div>
+              <div>
+                <dt>Slug</dt>
+                <dd id="market-slug">-</dd>
+              </div>
+              <div>
+                <dt>Question</dt>
+                <dd id="market-question">-</dd>
+              </div>
+              <div>
+                <dt>End Time</dt>
+                <dd id="market-end-time">-</dd>
+              </div>
+              <div>
+                <dt>Accepting Orders</dt>
+                <dd id="market-accepting-orders">-</dd>
+              </div>
+              <div>
+                <dt>Tick / Min Size</dt>
+                <dd id="market-order-rules">-</dd>
+              </div>
+            </dl>
+          </article>
+        </section>
       </section>
 
-      <section class="market-panel" aria-label="Market status">
-        <article class="panel">
-          <div class="panel-heading">
-            <h2>Market Status</h2>
-            <span id="market-state">unknown</span>
+      <section class="tab-panel" data-tab-panel="settings">
+        <form class="settings-form" id="settings-form">
+          <label>
+            <span>Bot Mode</span>
+            <select name="bot.mode">
+              <option value="paper">Paper</option>
+              <option value="live">Live</option>
+            </select>
+          </label>
+          <label>
+            <span>Cycle Seconds</span>
+            <input type="number" name="bot.cycle_seconds" min="0" step="0.01" />
+          </label>
+          <label>
+            <span>Strategy</span>
+            <select name="strategy.name">
+              <option value="baseline_momentum">Baseline Momentum</option>
+              <option value="late_window">Late Window</option>
+            </select>
+          </label>
+          <label>
+            <span>Staking Mode</span>
+            <select name="staking.mode">
+              <option value="fixed">Fixed</option>
+              <option value="fractional_kelly">Fractional Kelly</option>
+              <option value="confidence_tiering">Confidence Tiering</option>
+            </select>
+          </label>
+          <label>
+            <span>Fixed Stake</span>
+            <input type="number" name="staking.fixed_stake" min="0" step="0.01" />
+          </label>
+          <label>
+            <span>Kelly Fraction</span>
+            <input type="number" name="staking.kelly_fraction" min="0" max="1" step="0.01" />
+          </label>
+          <label>
+            <span>Max Stake</span>
+            <input type="number" name="risk.max_stake" min="0" step="0.01" />
+          </label>
+          <label>
+            <span>Max Daily Loss</span>
+            <input type="number" name="risk.max_daily_loss" min="0" step="0.01" />
+          </label>
+          <label>
+            <span>Max Spread</span>
+            <input type="number" name="risk.max_spread" min="0" step="0.001" />
+          </label>
+          <label>
+            <span>Min Liquidity</span>
+            <input type="number" name="risk.min_liquidity" min="0" step="0.01" />
+          </label>
+          <label>
+            <span>Min Edge</span>
+            <input type="number" name="risk.min_edge" min="0" step="0.001" />
+          </label>
+          <label>
+            <span>Max Feed Age</span>
+            <input type="number" name="risk.max_feed_age_ms" min="0" step="1" />
+          </label>
+          <label>
+            <span>Max Feed Deviation</span>
+            <input type="number" name="risk.max_feed_deviation_bps" min="0" step="1" />
+          </label>
+          <label>
+            <span>Max Open Positions</span>
+            <input type="number" name="risk.max_open_positions" min="0" step="1" />
+          </label>
+          <label>
+            <span>Max Open Orders</span>
+            <input type="number" name="risk.max_open_orders" min="0" step="1" />
+          </label>
+          <label>
+            <span>Late Min Seconds</span>
+            <input type="number" name="late_window.min_seconds_remaining" min="0" step="1" />
+          </label>
+          <label>
+            <span>Late Max Seconds</span>
+            <input type="number" name="late_window.max_seconds_remaining" min="0" step="1" />
+          </label>
+          <label>
+            <span>Late Min Return</span>
+            <input type="number" name="late_window.min_expected_return" min="0" step="0.001" />
+          </label>
+          <label>
+            <span>Late Max Return</span>
+            <input type="number" name="late_window.max_expected_return" min="0" step="0.001" />
+          </label>
+          <label>
+            <span>Late Min Confidence</span>
+            <input type="number" name="late_window.min_confidence" min="0" max="1" step="0.01" />
+          </label>
+          <div class="form-actions">
+            <button class="primary-button" type="submit">Save Settings</button>
+            <span id="settings-status" role="status"></span>
           </div>
-          <dl class="market-details">
-            <div>
-              <dt>Message</dt>
-              <dd id="market-message">No market checked yet.</dd>
-            </div>
-            <div>
-              <dt>Slug</dt>
-              <dd id="market-slug">-</dd>
-            </div>
-            <div>
-              <dt>Question</dt>
-              <dd id="market-question">-</dd>
-            </div>
-            <div>
-              <dt>End Time</dt>
-              <dd id="market-end-time">-</dd>
-            </div>
-            <div>
-              <dt>Accepting Orders</dt>
-              <dd id="market-accepting-orders">-</dd>
-            </div>
-            <div>
-              <dt>Tick / Min Size</dt>
-              <dd id="market-order-rules">-</dd>
-            </div>
-          </dl>
-        </article>
+        </form>
       </section>
 
-      <section class="grid">
-        <article class="panel">
-          <div class="panel-heading">
-            <h2>Recent Decisions</h2>
-            <span id="decision-count">0</span>
-          </div>
-          <ul class="list" id="decisions"></ul>
-        </article>
+      <section class="tab-panel" data-tab-panel="logs">
+        <section class="grid">
+          <article class="panel">
+            <div class="panel-heading">
+              <h2>Recent Decisions</h2>
+              <span id="decision-count">0</span>
+            </div>
+            <ul class="list" id="decisions"></ul>
+          </article>
 
-        <article class="panel">
-          <div class="panel-heading">
-            <h2>Recent Events</h2>
-            <span id="event-count">0</span>
-          </div>
-          <ul class="list" id="events"></ul>
-        </article>
+          <article class="panel">
+            <div class="panel-heading">
+              <h2>Recent Events</h2>
+              <span id="event-count">0</span>
+            </div>
+            <ul class="list" id="events"></ul>
+          </article>
+        </section>
       </section>
     </main>
     <script src="/static/app.js" defer></script>
