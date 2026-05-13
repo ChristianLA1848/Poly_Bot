@@ -147,16 +147,17 @@ class BotRunner:
             self._record_event("info", f"risk gate blocked: {risk_result.reason}", now)
             return
 
-        event_trade_count = self.store.count_paper_trades_for_event(market.slug)
-        if event_trade_count >= self.config.risk.max_trades_per_event:
-            self._record_event("info", "risk gate blocked: event_trade_limit_reached", now)
-            return
-
         stake = calculate_stake(self.config.staking, decision, self.config.risk.max_stake)
-        event_exposure = self.store.paper_event_exposure(market.slug)
-        if event_exposure + stake > self.config.risk.max_event_exposure:
-            self._record_event("info", "risk gate blocked: event_exposure_limit_reached", now)
-            return
+        if self.config.bot.mode == "paper":
+            event_trade_count = self.store.count_paper_trades_for_event(market.slug)
+            if event_trade_count >= self.config.risk.max_trades_per_event:
+                self._record_event("info", "risk gate blocked: event_trade_limit_reached", now)
+                return
+
+            event_exposure = self.store.paper_event_exposure(market.slug)
+            if event_exposure + stake > self.config.risk.max_event_exposure:
+                self._record_event("info", "risk gate blocked: event_exposure_limit_reached", now)
+                return
 
         if self.execution is None:
             self._record_event("error", "execution engine missing", now)

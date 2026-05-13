@@ -13,7 +13,15 @@ from polybot.config import (
     StakingSection,
     StrategySection,
 )
-from polybot.models import Decision, DecisionAction, FeedAggregate, FeedPrice, Market, OrderbookSnapshot
+from polybot.models import (
+    Decision,
+    DecisionAction,
+    FeedAggregate,
+    FeedPrice,
+    Market,
+    OrderbookSnapshot,
+    PaperTrade,
+)
 
 
 DEFAULT_MARKET = object()
@@ -94,6 +102,22 @@ class FakeExecution:
         return {"status": "cancelled"}
 
 
+class FakeLiveExecution:
+    def __init__(self) -> None:
+        self.orders = []
+
+    async def place_order(self, decision, stake):
+        self.orders.append((decision, stake))
+        return {
+            "status": "submitted",
+            "market_id": decision.market_id,
+            "token_id": decision.token_id,
+            "stake": stake,
+            "price": decision.target_price,
+            "shares": 0,
+        }
+
+
 def _config(max_spread: float = 0.04) -> BotConfig:
     return BotConfig(
         bot=BotSection(mode="paper", cycle_seconds=1),
@@ -112,6 +136,12 @@ def _config(max_spread: float = 0.04) -> BotConfig:
         exit=ExitSection(mode="hold_to_resolution"),
         late_window=LateWindowSection(),
     )
+
+
+def _live_config() -> BotConfig:
+    config = _config()
+    config.bot.mode = "live"
+    return config
 
 
 def _feed() -> FeedAggregate:
@@ -193,6 +223,49 @@ async def test_bot_runner_blocks_second_trade_in_same_event(tmp_path):
     assert snapshot["recent_events"][0]["message"] == (
         "risk gate blocked: event_trade_limit_reached"
     )
+
+
+@pytest.mark.asyncio
+async def test_bot_runner_live_mode_ignores_existing_paper_event_trade_limit(tmp_path):
+    execution = FakeLiveExecution()
+    runner = BotRunner(
+        config=_live_config(),
+        market_discovery=FakeMarketDiscovery(),
+        orderbook_client=FakeOrderbookClient(),
+        execution=execution,
+        store_path=tmp_path / "bot.sqlite3",
+        reference_start_price=100.0,
+        latest_feed=_feed(),
+    )
+    runner.store.record_paper_trade(
+        PaperTrade(
+            id=None,
+            created_at=datetime(2026, 5, 12, 21, 1, tzinfo=UTC),
+            event_slug="slug",
+            market_id="m",
+            token_id="up",
+            action=DecisionAction.BUY_UP.value,
+            strategy="test",
+            reason_code="seed",
+            stake=5,
+            price=0.50,
+            shares=10,
+            status="filled",
+            estimated_probability=0.60,
+            market_probability=0.50,
+            edge=0.10,
+            target_price=100.0,
+            btc_price_at_entry=101.0,
+            event_end_time=datetime(2026, 5, 12, 21, 5, tzinfo=UTC),
+        )
+    )
+
+    await runner.run_once(now=datetime(2026, 5, 12, 21, 3, tzinfo=UTC))
+
+    assert len(execution.orders) == 1
+    decision, stake = execution.orders[0]
+    assert decision.token_id == "up"
+    assert stake == 5
 
 
 @pytest.mark.asyncio
