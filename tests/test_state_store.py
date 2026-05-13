@@ -2,8 +2,36 @@ from datetime import UTC, datetime
 import json
 
 from polybot.audit_log import AuditLog
+from polybot.config import (
+    BotConfig,
+    BotSection,
+    ExitSection,
+    LateWindowSection,
+    RiskSection,
+    StakingSection,
+    StrategySection,
+)
 from polybot.models import BotEvent, Decision, DecisionAction, FeedAggregate, FeedPrice, Market
 from polybot.state_store import StateStore
+
+
+def make_bot_config_for_test() -> BotConfig:
+    return BotConfig(
+        bot=BotSection(mode="paper", cycle_seconds=1),
+        risk=RiskSection(
+            max_stake=10,
+            max_daily_loss=25,
+            max_spread=0.04,
+            min_liquidity=100,
+            min_edge=0.03,
+            max_feed_age_ms=2500,
+            max_feed_deviation_bps=20,
+        ),
+        strategy=StrategySection(name="baseline_momentum"),
+        staking=StakingSection(mode="fixed", fixed_stake=5),
+        exit=ExitSection(mode="hold_to_resolution"),
+        late_window=LateWindowSection(),
+    )
 
 
 def make_decision(
@@ -130,6 +158,25 @@ def test_state_store_records_feed_status_with_target_delta(tmp_path):
         "delta": 250.0,
         "delta_pct": 0.242718,
     }
+
+
+def test_state_store_returns_default_settings_when_unset(tmp_path):
+    store = StateStore(tmp_path / "bot.sqlite3")
+    store.initialize()
+    cfg = make_bot_config_for_test()
+
+    assert store.get_settings(cfg) == cfg.model_dump(mode="json")
+
+
+def test_state_store_records_settings_payload(tmp_path):
+    store = StateStore(tmp_path / "bot.sqlite3")
+    store.initialize()
+    cfg = make_bot_config_for_test()
+    payload = cfg.model_copy(update={"bot": cfg.bot.model_copy(update={"mode": "live"})})
+
+    store.record_settings(payload)
+
+    assert store.get_settings(cfg)["bot"]["mode"] == "live"
 
 
 def test_state_store_rounds_feed_delta_to_six_decimals(tmp_path):

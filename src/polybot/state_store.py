@@ -4,6 +4,7 @@ from pathlib import Path
 import sqlite3
 from typing import Any
 
+from polybot.config import BotConfig
 from polybot.models import BotEvent, Decision, FeedAggregate, Market
 
 
@@ -77,6 +78,10 @@ class StateStore:
                     payload TEXT NOT NULL
                 );
                 CREATE TABLE IF NOT EXISTS feed_status (
+                    id INTEGER PRIMARY KEY CHECK (id = 1),
+                    payload TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS settings (
                     id INTEGER PRIMARY KEY CHECK (id = 1),
                     payload TEXT NOT NULL
                 );
@@ -160,6 +165,16 @@ class StateStore:
             "delta_pct": delta_pct,
         }
         self._upsert_singleton_payload("feed_status", payload)
+
+    def get_settings(self, default_config: BotConfig) -> dict[str, Any]:
+        with self.connect() as conn:
+            row = conn.execute("SELECT payload FROM settings WHERE id = 1").fetchone()
+        if row is None:
+            return default_config.model_dump(mode="json")
+        return json.loads(row["payload"])
+
+    def record_settings(self, config: BotConfig) -> None:
+        self._upsert_singleton_payload("settings", config.model_dump(mode="json"))
 
     def _upsert_singleton_payload(self, table: str, payload: dict[str, Any]) -> None:
         with self.connect() as conn:
