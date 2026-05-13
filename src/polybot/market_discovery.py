@@ -58,6 +58,14 @@ def parse_btc_market(payload: dict[str, Any]) -> Market:
     )
 
 
+def _is_btc_5m_updown_market(item: dict[str, Any]) -> bool:
+    question = (item.get("question") or "").lower()
+    slug = (item.get("slug") or "").lower()
+    has_btc_slug = slug.startswith("btc-updown-5m-")
+    has_question_match = "bitcoin" in question and "up or down" in question
+    return (has_btc_slug or has_question_match) and bool(item.get("clobTokenIds"))
+
+
 class MarketDiscovery:
     def __init__(self, client: httpx.AsyncClient | None = None):
         self._owns_client = client is None
@@ -87,7 +95,6 @@ class MarketDiscovery:
         response.raise_for_status()
 
         for item in response.json():
-            text = f"{item.get('question', '')} {item.get('slug', '')}".lower()
-            if "bitcoin" in text and "up-or-down" in text and item.get("clobTokenIds"):
+            if _is_btc_5m_updown_market(item):
                 return parse_btc_market(item)
         return None

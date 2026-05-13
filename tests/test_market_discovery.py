@@ -111,3 +111,58 @@ async def test_market_discovery_does_not_close_injected_client():
     await discovery.aclose()
 
     assert fake_client.closed is False
+
+
+class FakeResponse:
+    def __init__(self, payload):
+        self.payload = payload
+
+    def raise_for_status(self):
+        return None
+
+    def json(self):
+        return self.payload
+
+
+class FakeMarketsClient:
+    def __init__(self, payload):
+        self.payload = payload
+        self.requests = []
+
+    async def get(self, path, params):
+        self.requests.append((path, params))
+        return FakeResponse(self.payload)
+
+
+@pytest.mark.asyncio
+async def test_market_discovery_finds_btc_updown_slug():
+    payload = [
+        BASE_MARKET_PAYLOAD
+        | {
+            "question": "Bitcoin Up or Down - May 13, 12:30AM-12:35AM ET",
+            "slug": "btc-updown-5m-1778646600",
+        }
+    ]
+    discovery = market_discovery.MarketDiscovery(client=FakeMarketsClient(payload))
+
+    market = await discovery.find_btc_5m_market()
+
+    assert market is not None
+    assert market.slug == "btc-updown-5m-1778646600"
+
+
+@pytest.mark.asyncio
+async def test_market_discovery_finds_question_with_up_or_down_words():
+    payload = [
+        BASE_MARKET_PAYLOAD
+        | {
+            "question": "Bitcoin Up or Down - May 13, 12:30AM-12:35AM ET",
+            "slug": "bitcoin-up-or-down-may-13",
+        }
+    ]
+    discovery = market_discovery.MarketDiscovery(client=FakeMarketsClient(payload))
+
+    market = await discovery.find_btc_5m_market()
+
+    assert market is not None
+    assert market.question.startswith("Bitcoin Up or Down")
