@@ -318,6 +318,8 @@ async def test_bot_runner_records_warning_when_market_not_accepting_orders(tmp_p
     assert snapshot["recent_events"][0]["message"] == "market not accepting orders"
     assert snapshot["market_status"]["state"] == "not_accepting_orders"
     assert snapshot["market_status"]["slug"] == "slug"
+    assert snapshot["feed_status"]["btc_price"] == 101.0
+    assert snapshot["feed_status"]["target_price"] is None
 
 
 @pytest.mark.asyncio
