@@ -338,6 +338,31 @@ async def test_bot_runner_records_ready_market_status_before_deciding(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_bot_runner_records_feed_and_target_status(tmp_path):
+    runner = BotRunner(
+        config=_config(),
+        market_discovery=FakeMarketDiscovery(),
+        orderbook_client=FakeOrderbookClient(),
+        execution=FakeExecution(),
+        store_path=tmp_path / "bot.sqlite3",
+        reference_start_price=100.0,
+        latest_feed=_feed(),
+    )
+
+    await runner.run_once(now=datetime(2026, 5, 12, 21, 3, tzinfo=UTC))
+
+    assert runner.store.dashboard_snapshot()["feed_status"] == {
+        "btc_price": 101.0,
+        "fresh": True,
+        "max_deviation_bps": 0,
+        "created_at": "2026-05-12T21:03:00+00:00",
+        "target_price": 100.0,
+        "delta": 1.0,
+        "delta_pct": 1.0,
+    }
+
+
+@pytest.mark.asyncio
 async def test_bot_runner_records_error_when_execution_engine_missing(tmp_path):
     runner = BotRunner(
         config=_config(),
