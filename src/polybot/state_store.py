@@ -230,12 +230,17 @@ class StateStore:
             )
             return int(cursor.lastrowid)
 
-    def list_paper_trades(self, limit: int = 100) -> list[dict[str, Any]]:
+    def list_paper_trades(self, limit: int | None = 100) -> list[dict[str, Any]]:
         with self.connect() as conn:
-            rows = conn.execute(
-                "SELECT * FROM paper_trades ORDER BY created_at DESC, id DESC LIMIT ?",
-                (limit,),
-            ).fetchall()
+            if limit is None:
+                rows = conn.execute(
+                    "SELECT * FROM paper_trades ORDER BY created_at DESC, id DESC"
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    "SELECT * FROM paper_trades ORDER BY created_at DESC, id DESC LIMIT ?",
+                    (limit,),
+                ).fetchall()
         return [dict(row) for row in rows]
 
     def count_paper_trades_for_event(self, event_slug: str) -> int:
@@ -270,8 +275,19 @@ class StateStore:
                 """,
                 (now.isoformat(),),
             ).fetchall()
+            evaluated = 0
             for row in rows:
                 action = row["action"]
+                if action not in {"BUY_UP", "BUY_DOWN"}:
+                    conn.execute(
+                        "INSERT INTO events (created_at, level, message) VALUES (?, ?, ?)",
+                        (
+                            now.isoformat(),
+                            "warning",
+                            f"skipped paper trade with unsupported action: {action}",
+                        ),
+                    )
+                    continue
                 target_price = float(row["target_price"])
                 shares = float(row["shares"])
                 stake = float(row["stake"])
@@ -299,10 +315,11 @@ class StateStore:
                         row["id"],
                     ),
                 )
-        return len(rows)
+                evaluated += 1
+        return evaluated
 
     def paper_analytics(self) -> dict[str, Any]:
-        trades = self.list_paper_trades(limit=1000)
+        trades = self.list_paper_trades(limit=None)
         resolved = [trade for trade in trades if trade["resolved_at"] is not None]
         open_trades = [trade for trade in trades if trade["resolved_at"] is None]
         wins = [trade for trade in resolved if trade["outcome"] == "win"]

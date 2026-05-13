@@ -67,6 +67,42 @@ def make_decision(
     )
 
 
+def make_paper_trade(
+    *,
+    created_at: datetime = datetime(2026, 5, 13, 20, 20, tzinfo=UTC),
+    event_slug: str = "slug-1",
+    action: str = "BUY_UP",
+    strategy: str = "late_window_5m",
+    stake: float = 5.0,
+    price: float = 0.5,
+    shares: float = 10.0,
+    edge: float = 0.2,
+    target_price: float = 100.0,
+    btc_price_at_entry: float = 101.0,
+    event_end_time: datetime = datetime(2026, 5, 13, 20, 25, tzinfo=UTC),
+) -> PaperTrade:
+    return PaperTrade(
+        None,
+        created_at,
+        event_slug,
+        "0xmarket",
+        "up",
+        action,
+        strategy,
+        "test_reason",
+        stake,
+        price,
+        shares,
+        "filled",
+        0.7,
+        0.5,
+        edge,
+        target_price,
+        btc_price_at_entry,
+        event_end_time,
+    )
+
+
 def test_state_store_empty_snapshot(tmp_path):
     store = StateStore(tmp_path / "bot.sqlite3")
     store.initialize()
@@ -409,6 +445,25 @@ def test_state_store_evaluates_paper_trade_win_and_loss(tmp_path):
     assert trades[1]["pnl"] == -5.0
 
 
+def test_state_store_skips_unknown_paper_trade_action(tmp_path):
+    store = StateStore(tmp_path / "bot.sqlite3")
+    store.initialize()
+    store.record_paper_trade(make_paper_trade(action="SELL_UP"))
+
+    evaluated = store.evaluate_open_paper_trades(
+        now=datetime(2026, 5, 13, 20, 26, tzinfo=UTC),
+        final_btc_price=101.0,
+    )
+
+    trades = store.list_paper_trades()
+    events = store.dashboard_snapshot()["recent_events"]
+    assert evaluated == 0
+    assert trades[0]["resolved_at"] is None
+    assert trades[0]["outcome"] is None
+    assert events[0]["level"] == "warning"
+    assert events[0]["message"] == "skipped paper trade with unsupported action: SELL_UP"
+
+
 def test_state_store_returns_paper_analytics_summary(tmp_path):
     store = StateStore(tmp_path / "bot.sqlite3")
     store.initialize()
@@ -472,6 +527,37 @@ def test_state_store_returns_paper_analytics_summary(tmp_path):
     assert analytics["by_strategy"]["late_window_5m"]["trades"] == 1
     assert len(analytics["equity_curve"]) == 2
     assert analytics["equity_curve"][-1]["cumulative_pnl"] == 0.0
+
+
+def test_state_store_paper_analytics_totals_all_trades(tmp_path):
+    store = StateStore(tmp_path / "bot.sqlite3")
+    store.initialize()
+    base_time = datetime(2026, 5, 13, 20, 20, tzinfo=UTC)
+    end_time = datetime(2026, 5, 13, 20, 25, tzinfo=UTC)
+    for index in range(1001):
+        store.record_paper_trade(
+            make_paper_trade(
+                created_at=base_time.replace(second=index % 60),
+                event_slug=f"slug-{index}",
+                stake=1.0,
+                price=0.5,
+                shares=2.0,
+                edge=0.1,
+                target_price=100.0,
+                btc_price_at_entry=101.0,
+                event_end_time=end_time,
+            )
+        )
+    store.evaluate_open_paper_trades(datetime(2026, 5, 13, 20, 26, tzinfo=UTC), 101.0)
+
+    analytics = store.paper_analytics()
+
+    assert analytics["total_trades"] == 1001
+    assert analytics["resolved_trades"] == 1001
+    assert analytics["winning_trades"] == 1001
+    assert analytics["total_pnl"] == 1001.0
+    assert analytics["equity_curve"][-1]["cumulative_pnl"] == 1001.0
+    assert len(analytics["recent_paper_trades"]) == 20
 
 
 def test_state_store_orders_snapshot_by_created_at_then_id(tmp_path):
