@@ -32,6 +32,40 @@ class Market:
 
 
 @dataclass(frozen=True)
+class MarketSnapshot:
+    market_id: str
+    slug: str
+    question: str
+    market_profile: str
+    start_time: datetime | None
+    end_time: datetime
+    accepting_orders: bool
+    seconds_elapsed: float | None
+    seconds_remaining: float
+    window_seconds: float | None
+    target_price: float
+    btc_price: float
+    delta: float
+    delta_pct: float
+    up_token_id: str
+    down_token_id: str
+    up_bid: float
+    up_ask: float
+    down_bid: float
+    down_ask: float
+    up_spread: float
+    down_spread: float
+    max_spread: float
+    up_bid_size: float
+    up_ask_size: float
+    down_bid_size: float
+    down_ask_size: float
+    feed_fresh: bool
+    feed_max_deviation_bps: float
+    source_count: int
+
+
+@dataclass(frozen=True)
 class FeedPrice:
     source: str
     symbol: str

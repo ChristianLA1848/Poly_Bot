@@ -39,7 +39,7 @@ def _book(token_id: str, bid: float, ask: float) -> OrderbookSnapshot:
         token_id=token_id,
         best_bid=bid,
         best_ask=ask,
-        spread=ask - bid,
+        spread=round(ask - bid, 6),
         bid_size=200.0,
         ask_size=200.0,
         timestamp_ms=1,
@@ -59,8 +59,8 @@ def _context(
         market=market or _market(),
         reference_start_price=reference,
         feed=_aggregate(price),
-        up_book=_book("up", 0.60, up_ask),
-        down_book=_book("down", 0.38, down_ask),
+        up_book=_book("up", round(up_ask - 0.02, 6), up_ask),
+        down_book=_book("down", round(down_ask - 0.02, 6), down_ask),
         now=now,
     )
 
@@ -138,6 +138,34 @@ def test_late_window_strategy_accepts_trade_inside_return_band():
     assert decision.token_id == "up"
     assert 0.01 <= decision.expected_return <= 0.10
     assert decision.max_slippage == 0.005
+
+
+def test_strategy_context_builds_market_snapshot():
+    now = datetime(2026, 5, 12, 21, 4, 20, tzinfo=UTC)
+    market = _market(end_offset=timedelta(minutes=5))
+    context = _context(
+        price=100.25,
+        reference=100.0,
+        market=market,
+        now=now,
+        up_ask=0.84,
+        down_ask=0.18,
+    )
+
+    snapshot = context.snapshot
+
+    assert snapshot.market_profile == "btc_5m"
+    assert snapshot.seconds_remaining == 40.0
+    assert snapshot.window_seconds == 300.0
+    assert snapshot.target_price == 100.0
+    assert snapshot.btc_price == 100.25
+    assert snapshot.delta == 0.25
+    assert snapshot.delta_pct == 0.25
+    assert snapshot.up_ask == 0.84
+    assert snapshot.down_ask == 0.18
+    assert snapshot.max_spread == 0.02
+    assert snapshot.feed_fresh is True
+    assert snapshot.source_count == 1
 
 
 def test_late_window_strategy_buys_down_inside_return_band():
