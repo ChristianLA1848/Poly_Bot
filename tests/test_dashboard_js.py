@@ -21,6 +21,10 @@ const svg = equityCurveSvg([]);
 if (svg !== "") {{
   throw new Error(`Expected empty SVG, got: ${{svg}}`);
 }}
+const nullSvg = equityCurveSvg(null);
+if (nullSvg !== "") {{
+  throw new Error(`Expected empty SVG for null input, got: ${{nullSvg}}`);
+}}
 """
 
     run_node(script)
