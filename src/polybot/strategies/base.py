@@ -95,13 +95,64 @@ class Strategy(Protocol):
         ...
 
 
+@dataclass(frozen=True)
+class StrategyMetadata:
+    name: str
+    label: str
+    market_profiles: tuple[str, ...]
+    description: str
+
+
+STRATEGY_METADATA = {
+    "baseline_momentum": StrategyMetadata(
+        name="baseline_momentum",
+        label="Baseline Momentum",
+        market_profiles=("btc_5m", "longer_crypto", "all_crypto"),
+        description="Momentum strategy using current BTC delta against target.",
+    ),
+    "late_window_5m": StrategyMetadata(
+        name="late_window_5m",
+        label="Late Window 5m",
+        market_profiles=("btc_5m",),
+        description="Trades BTC 5-minute windows late when confidence and return align.",
+    ),
+    "trend_following": StrategyMetadata(
+        name="trend_following",
+        label="Trend Following",
+        market_profiles=("longer_crypto",),
+        description="Conservative trend strategy for longer crypto windows.",
+    ),
+}
+
+
+STRATEGY_ALIASES = {"late_window": "late_window_5m"}
+
+
+def normalize_strategy_name(name: str) -> str:
+    return STRATEGY_ALIASES.get(name, name)
+
+
+def list_strategy_metadata() -> tuple[StrategyMetadata, ...]:
+    return tuple(STRATEGY_METADATA.values())
+
+
+def strategy_supports_market(name: str, market_profile: str) -> bool:
+    metadata = STRATEGY_METADATA[normalize_strategy_name(name)]
+    return market_profile in metadata.market_profiles
+
+
 def load_strategy(name: str) -> Strategy:
-    if name == "baseline_momentum":
+    normalized = normalize_strategy_name(name)
+    if normalized == "baseline_momentum":
         from polybot.strategies.baseline_momentum import BaselineMomentumStrategy
 
         return BaselineMomentumStrategy()
-    if name == "late_window":
-        from polybot.strategies.late_window import LateWindowStrategy
+    if normalized == "late_window_5m":
+        from polybot.strategies.late_window_5m import LateWindow5mStrategy
 
-        return LateWindowStrategy()
+        return LateWindow5mStrategy()
+    if normalized == "trend_following":
+        from polybot.strategies.trend_following import TrendFollowingStrategy
+
+        return TrendFollowingStrategy()
     raise ValueError(f"Unknown strategy: {name}")

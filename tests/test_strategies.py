@@ -74,6 +74,22 @@ def test_baseline_strategy_buys_up_when_price_above_reference():
     assert decision.confidence > 0.5
 
 
+def test_strategy_registry_lists_available_strategies():
+    from polybot.strategies.base import list_strategy_metadata
+
+    metadata = {item.name: item for item in list_strategy_metadata()}
+
+    assert metadata["baseline_momentum"].label == "Baseline Momentum"
+    assert metadata["late_window_5m"].market_profiles == ("btc_5m",)
+    assert metadata["trend_following"].market_profiles == ("longer_crypto",)
+
+
+def test_late_window_alias_loads_late_window_5m_strategy():
+    strategy = load_strategy("late_window")
+
+    assert strategy.name == "late_window_5m"
+
+
 def test_strategy_decision_includes_reason_code_and_edge_fields():
     decision = load_strategy("baseline_momentum").decide(_context())
 

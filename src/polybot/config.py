@@ -34,7 +34,12 @@ class RiskSection(BaseModel):
 
 
 class StrategySection(BaseModel):
-    name: Literal["baseline_momentum", "late_window"] = "baseline_momentum"
+    name: Literal[
+        "baseline_momentum",
+        "late_window",
+        "late_window_5m",
+        "trend_following",
+    ] = "baseline_momentum"
 
 
 class StakingSection(BaseModel):

@@ -11,6 +11,35 @@ from polybot.config import BotConfig, load_bot_config
 runner = CliRunner()
 
 
+def _valid_config_data() -> dict:
+    return {
+        "bot": {
+            "mode": "paper",
+            "cycle_seconds": 1.0,
+        },
+        "risk": {
+            "max_stake": 10.0,
+            "max_daily_loss": 25.0,
+            "max_spread": 0.04,
+            "min_liquidity": 100.0,
+            "min_edge": 0.03,
+            "max_feed_age_ms": 2500,
+            "max_feed_deviation_bps": 20,
+        },
+        "strategy": {
+            "name": "baseline_momentum",
+        },
+        "staking": {
+            "mode": "fixed",
+            "fixed_stake": 5.0,
+            "kelly_fraction": 0.25,
+        },
+        "exit": {
+            "mode": "hold_to_resolution",
+        },
+    }
+
+
 def test_load_bot_config_from_toml(tmp_path: Path):
     cfg_path = tmp_path / "bot.toml"
     cfg_path.write_text(
@@ -88,6 +117,14 @@ mode = "hold_to_resolution"
     errors = exc_info.value.errors()
     assert any(error["loc"] == ("risk", "max_stake") for error in errors)
     assert any(error["loc"] == ("risk", "max_spread") for error in errors)
+
+
+def test_strategy_config_accepts_new_strategy_names():
+    base = _valid_config_data()
+
+    for name in ["baseline_momentum", "late_window", "late_window_5m", "trend_following"]:
+        data = base | {"strategy": {"name": name}}
+        assert BotConfig.model_validate(data).strategy.name == name
 
 
 def test_check_config_missing_file_exits_cleanly():
