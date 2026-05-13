@@ -92,6 +92,18 @@
             <span>Confidence</span>
             <strong id="strategy-confidence">-</strong>
           </article>
+          <article class="metric">
+            <span>Estimated Probability</span>
+            <strong id="strategy-estimated-probability">-</strong>
+          </article>
+          <article class="metric">
+            <span>Market Probability</span>
+            <strong id="strategy-market-probability">-</strong>
+          </article>
+          <article class="metric">
+            <span>Compatibility</span>
+            <strong id="strategy-compatibility">-</strong>
+          </article>
           <article class="metric controls">
             <span>Bot Control</span>
             <div class="button-row">
@@ -160,7 +172,8 @@
             <span>Strategy</span>
             <select name="strategy.name">
               <option value="baseline_momentum">Baseline Momentum</option>
-              <option value="late_window">Late Window</option>
+              <option value="late_window_5m">Late Window 5m</option>
+              <option value="trend_following">Trend Following</option>
             </select>
           </label>
           <label>

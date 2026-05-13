@@ -183,9 +183,14 @@ def test_dashboard_root_contains_tabs_controls_and_settings(tmp_path):
     assert 'id="strategy-reason-code"' in html
     assert 'id="strategy-edge"' in html
     assert 'id="strategy-confidence"' in html
+    assert 'id="strategy-estimated-probability"' in html
+    assert 'id="strategy-market-probability"' in html
+    assert 'id="strategy-compatibility"' in html
     assert 'name="bot.mode"' in html
     assert 'name="bot.cycle_seconds" min="0.01"' in html
     assert 'name="strategy.name"' in html
+    assert 'value="late_window_5m"' in html
+    assert 'value="trend_following"' in html
     assert 'name="staking.mode"' in html
     assert 'name="risk.max_stake" min="0.01"' in html
     assert 'name="risk.max_feed_age_ms" min="1"' in html

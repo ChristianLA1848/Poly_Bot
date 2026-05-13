@@ -60,6 +60,11 @@ class FakeOrderbookClient:
         return OrderbookSnapshot("m", token_id, 0.49, 0.49 + self.spread, self.spread, 200, 200, 1)
 
 
+class FailingOrderbookClient:
+    async def get_book(self, token_id: str) -> OrderbookSnapshot:
+        raise ValueError("orderbook has no bid levels")
+
+
 class CloseableFakeOrderbookClient(FakeOrderbookClient):
     def __init__(self, *, spread: float = 0.01) -> None:
         super().__init__(spread=spread)
@@ -337,6 +342,28 @@ async def test_bot_runner_records_ready_market_status_before_deciding(tmp_path):
     await runner.run_once(now=datetime(2026, 5, 12, 21, 3, tzinfo=UTC))
 
     assert runner.store.dashboard_snapshot()["market_status"]["state"] == "ready"
+
+
+@pytest.mark.asyncio
+async def test_bot_runner_records_warning_when_orderbook_unavailable(tmp_path):
+    runner = BotRunner(
+        config=_config(),
+        market_discovery=FakeMarketDiscovery(),
+        orderbook_client=FailingOrderbookClient(),
+        execution=FakeExecution(),
+        store_path=tmp_path / "bot.sqlite3",
+        reference_start_price=100.0,
+        latest_feed=_feed(),
+    )
+
+    await runner.run_once(now=datetime(2026, 5, 12, 21, 3, tzinfo=UTC))
+
+    snapshot = runner.store.dashboard_snapshot()
+    assert snapshot["recent_events"][0] == {
+        "created_at": "2026-05-12T21:03:00+00:00",
+        "level": "warning",
+        "message": "orderbook unavailable: orderbook has no bid levels",
+    }
 
 
 @pytest.mark.asyncio

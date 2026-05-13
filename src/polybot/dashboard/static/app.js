@@ -7,6 +7,9 @@ const targetDelta = document.querySelector("#target-delta");
 const strategyReasonCode = document.querySelector("#strategy-reason-code");
 const strategyEdge = document.querySelector("#strategy-edge");
 const strategyConfidence = document.querySelector("#strategy-confidence");
+const strategyEstimatedProbability = document.querySelector("#strategy-estimated-probability");
+const strategyMarketProbability = document.querySelector("#strategy-market-probability");
+const strategyCompatibility = document.querySelector("#strategy-compatibility");
 const decisionsList = document.querySelector("#decisions");
 const eventsList = document.querySelector("#events");
 const decisionCount = document.querySelector("#decision-count");
@@ -22,6 +25,7 @@ const startBotButton = document.querySelector("#start-bot");
 const stopBotButton = document.querySelector("#stop-bot");
 const settingsForm = document.querySelector("#settings-form");
 const settingsStatus = document.querySelector("#settings-status");
+const strategySelect = document.querySelector('select[name="strategy.name"]');
 
 let currentSettings = {};
 
@@ -41,6 +45,14 @@ function formatCurrency(value, signed = false) {
     currency: "USD",
     signDisplay: signed ? "exceptZero" : "auto",
   }).format(Number(value));
+}
+
+function formatPercent(value) {
+  if (value === null || value === undefined || value === "") {
+    return "-";
+  }
+
+  return `${(Number(value) * 100).toFixed(1)}%`;
 }
 
 function setRuntimeStatus(status) {
@@ -99,7 +111,10 @@ function populateSettingsForm(settings) {
       continue;
     }
 
-    const value = getNested(settings, field.name);
+    let value = getNested(settings, field.name);
+    if (field.name === "strategy.name") {
+      value = normalizeStrategyName(value);
+    }
     if (value !== null && value !== undefined) {
       field.value = value;
     }
@@ -125,6 +140,28 @@ function renderSettings(settings) {
   if (settings && Object.keys(settings).length > 0) {
     populateSettingsForm(settings);
   }
+}
+
+function normalizeStrategyName(name) {
+  return name === "late_window" ? "late_window_5m" : name;
+}
+
+function renderStrategyOptions(metadata) {
+  if (!strategySelect || !Array.isArray(metadata) || metadata.length === 0) {
+    return;
+  }
+
+  const currentValue = normalizeStrategyName(strategySelect.value);
+  strategySelect.innerHTML = "";
+  for (const item of metadata) {
+    const option = document.createElement("option");
+    option.value = item.name;
+    option.textContent = item.label || item.name;
+    strategySelect.appendChild(option);
+  }
+  strategySelect.value = metadata.some((item) => item.name === currentValue)
+    ? currentValue
+    : metadata[0].name;
 }
 
 function renderEmpty(list, message) {
@@ -173,8 +210,13 @@ function renderDecisions(decisions) {
   }
 }
 
-function renderStrategyMetrics(decisions) {
+function renderStrategyMetrics(decisions, snapshot) {
   const latestDecision = (decisions || [])[0] || {};
+  const selectedStrategy = normalizeStrategyName(snapshot.settings?.strategy?.name);
+  const activeMetadata = (snapshot.strategy_metadata || []).find(
+    (item) => item.name === selectedStrategy,
+  );
+  const marketProfile = snapshot.market_status?.market_profile;
   setText(strategyReasonCode, latestDecision.reason_code || "-");
   setText(
     strategyEdge,
@@ -184,9 +226,17 @@ function renderStrategyMetrics(decisions) {
   );
   setText(
     strategyConfidence,
-    latestDecision.confidence === null || latestDecision.confidence === undefined
-      ? "-"
-      : `${(Number(latestDecision.confidence) * 100).toFixed(1)}%`,
+    formatPercent(latestDecision.confidence),
+  );
+  setText(strategyEstimatedProbability, formatPercent(latestDecision.estimated_probability));
+  setText(strategyMarketProbability, formatPercent(latestDecision.market_probability));
+  setText(
+    strategyCompatibility,
+    activeMetadata && marketProfile
+      ? activeMetadata.market_profiles.includes(marketProfile)
+        ? "supported"
+        : "unsupported"
+      : "-",
   );
 }
 
@@ -249,11 +299,12 @@ async function refreshSnapshot() {
   const status = snapshot.runtime_status?.state || snapshot.bot_status || "ready";
   setRuntimeStatus(status);
   pnlValue.textContent = formatCurrency(snapshot.today_pnl, true);
+  renderStrategyOptions(snapshot.strategy_metadata);
   renderFeedStatus(snapshot.feed_status);
   renderMarketStatus(snapshot.market_status);
   renderSettings(snapshot.settings);
   const recentDecisions = snapshot.recent_decisions || [];
-  renderStrategyMetrics(recentDecisions);
+  renderStrategyMetrics(recentDecisions, snapshot);
   renderDecisions(recentDecisions);
   renderEvents(snapshot.recent_events || []);
 }

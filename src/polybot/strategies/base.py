@@ -26,14 +26,17 @@ class StrategyContext:
 
 
 def classify_market_profile(market: Market) -> str:
+    question = market.question.lower()
+    slug = market.slug.lower()
+    is_btc_market = "bitcoin" in question or "btc" in slug
     duration = (
         (market.end_time - market.start_time).total_seconds()
         if market.start_time
         else None
     )
-    if market.slug.startswith("btc-updown-5m-") or duration == 300:
+    if market.slug.startswith("btc-updown-5m-") or (is_btc_market and duration == 300):
         return "btc_5m"
-    if "bitcoin" in market.question.lower() or "btc" in market.slug.lower():
+    if is_btc_market:
         return "longer_crypto"
     return "all_crypto"
 

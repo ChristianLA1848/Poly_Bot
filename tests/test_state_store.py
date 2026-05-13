@@ -80,6 +80,7 @@ def test_state_store_empty_snapshot(tmp_path):
             "accepting_orders": None,
             "tick_size": None,
             "min_size": None,
+            "market_profile": None,
         },
         "runtime_status": {
             "state": "stopped",
@@ -345,6 +346,7 @@ def test_state_store_records_market_status(tmp_path):
         "accepting_orders": False,
         "tick_size": 0.01,
         "min_size": 5.0,
+        "market_profile": "btc_5m",
     }
 
 

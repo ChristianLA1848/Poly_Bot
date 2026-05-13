@@ -84,8 +84,12 @@ class BotRunner:
             self.reference_start_price = self.latest_feed.reference_price
         self.store.record_feed_status(self.latest_feed, self.reference_start_price)
 
-        up_book = await self.orderbook_client.get_book(market.up_token_id)
-        down_book = await self.orderbook_client.get_book(market.down_token_id)
+        try:
+            up_book = await self.orderbook_client.get_book(market.up_token_id)
+            down_book = await self.orderbook_client.get_book(market.down_token_id)
+        except ValueError as exc:
+            self._record_event("warning", f"orderbook unavailable: {exc}", now)
+            return
         strategy = load_strategy(self.config.strategy.name)
         context = StrategyContext(
             market=market,

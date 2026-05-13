@@ -6,6 +6,7 @@ from typing import Any
 
 from polybot.config import BotConfig
 from polybot.models import BotEvent, Decision, FeedAggregate, Market
+from polybot.strategies.base import classify_market_profile
 
 
 DEFAULT_MARKET_STATUS = {
@@ -20,6 +21,7 @@ DEFAULT_MARKET_STATUS = {
     "accepting_orders": None,
     "tick_size": None,
     "min_size": None,
+    "market_profile": None,
 }
 
 
@@ -132,6 +134,7 @@ class StateStore:
                 "accepting_orders": market.accepting_orders,
                 "tick_size": market.tick_size,
                 "min_size": market.min_size,
+                "market_profile": classify_market_profile(market),
             }
 
         self._upsert_singleton_payload("market_status", payload)

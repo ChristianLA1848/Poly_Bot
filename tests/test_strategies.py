@@ -9,7 +9,7 @@ from polybot.models import (
     Market,
     OrderbookSnapshot,
 )
-from polybot.strategies.base import StrategyContext, load_strategy
+from polybot.strategies.base import StrategyContext, classify_market_profile, load_strategy
 
 
 def _market(end_offset: timedelta = timedelta(minutes=5)) -> Market:
@@ -346,6 +346,24 @@ def test_strategy_context_builds_market_snapshot():
     assert snapshot.max_spread == 0.02
     assert snapshot.feed_fresh is True
     assert snapshot.source_count == 1
+
+
+def test_classify_market_profile_does_not_treat_non_btc_5m_as_btc():
+    now = datetime(2026, 5, 12, 21, 0, tzinfo=UTC)
+    market = Market(
+        "m",
+        "Weather Up or Down",
+        "weather-updown-5m",
+        "up",
+        "down",
+        now,
+        now + timedelta(minutes=5),
+        0.01,
+        5.0,
+        True,
+    )
+
+    assert classify_market_profile(market) == "all_crypto"
 
 
 def test_late_window_strategy_buys_down_inside_return_band():
