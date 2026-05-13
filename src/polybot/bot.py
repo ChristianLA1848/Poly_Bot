@@ -57,11 +57,19 @@ class BotRunner:
 
         market = await self.market_discovery.find_btc_5m_market()
         if market is None:
+            self.store.record_market_status("not_found", "market not found", now)
             self._record_event("warning", "market not found", now)
             return
         if not market.accepting_orders:
+            self.store.record_market_status(
+                "not_accepting_orders",
+                "market not accepting orders",
+                now,
+                market,
+            )
             self._record_event("warning", "market not accepting orders", now)
             return
+        self.store.record_market_status("ready", "market ready", now, market)
 
         if self.reference_start_price is None:
             self.reference_start_price = self.latest_feed.reference_price

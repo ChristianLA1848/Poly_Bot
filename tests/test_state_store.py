@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 import json
 
 from polybot.audit_log import AuditLog
-from polybot.models import BotEvent, Decision, DecisionAction, FeedAggregate, FeedPrice
+from polybot.models import BotEvent, Decision, DecisionAction, FeedAggregate, FeedPrice, Market
 from polybot.state_store import StateStore
 
 
@@ -35,7 +35,23 @@ def test_state_store_empty_snapshot(tmp_path):
 
     snapshot = store.dashboard_snapshot()
 
-    assert snapshot == {"recent_decisions": [], "recent_events": []}
+    assert snapshot == {
+        "recent_decisions": [],
+        "recent_events": [],
+        "market_status": {
+            "state": "unknown",
+            "message": "No market checked yet.",
+            "checked_at": None,
+            "market_id": None,
+            "slug": None,
+            "question": None,
+            "start_time": None,
+            "end_time": None,
+            "accepting_orders": None,
+            "tick_size": None,
+            "min_size": None,
+        },
+    }
 
 
 def test_state_store_records_decision_and_event(tmp_path):
@@ -126,6 +142,42 @@ def test_state_store_persists_across_instances(tmp_path):
     snapshot = next_store.dashboard_snapshot()
     assert snapshot["recent_decisions"][0]["market_id"] == "0xmarket"
     assert snapshot["recent_events"][0]["level"] == "info"
+
+
+def test_state_store_records_market_status(tmp_path):
+    store = StateStore(tmp_path / "bot.sqlite3")
+    store.initialize()
+    start = datetime(2026, 5, 12, 21, 0, tzinfo=UTC)
+    end = datetime(2026, 5, 12, 21, 5, tzinfo=UTC)
+    checked_at = datetime(2026, 5, 12, 21, 3, tzinfo=UTC)
+    market = Market(
+        "0xmarket",
+        "Bitcoin Up or Down - May 12, 9:00PM-9:05PM ET",
+        "btc-updown-5m-1778619600",
+        "up",
+        "down",
+        start,
+        end,
+        0.01,
+        5.0,
+        False,
+    )
+
+    store.record_market_status("not_accepting_orders", "market not accepting orders", checked_at, market)
+
+    assert store.dashboard_snapshot()["market_status"] == {
+        "state": "not_accepting_orders",
+        "message": "market not accepting orders",
+        "checked_at": checked_at.isoformat(),
+        "market_id": "0xmarket",
+        "slug": "btc-updown-5m-1778619600",
+        "question": "Bitcoin Up or Down - May 12, 9:00PM-9:05PM ET",
+        "start_time": start.isoformat(),
+        "end_time": end.isoformat(),
+        "accepting_orders": False,
+        "tick_size": 0.01,
+        "min_size": 5.0,
+    }
 
 
 def test_audit_log_serializes_datetime_enum_and_dataclass_payloads(tmp_path):

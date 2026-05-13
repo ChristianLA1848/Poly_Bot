@@ -283,6 +283,7 @@ async def test_bot_runner_records_warning_when_market_missing(tmp_path):
 
     assert execution.orders == []
     assert runner.store.dashboard_snapshot()["recent_events"][0]["message"] == "market not found"
+    assert runner.store.dashboard_snapshot()["market_status"]["state"] == "not_found"
 
 
 @pytest.mark.asyncio
@@ -313,9 +314,27 @@ async def test_bot_runner_records_warning_when_market_not_accepting_orders(tmp_p
     await runner.run_once(now=datetime(2026, 5, 12, 21, 3, tzinfo=UTC))
 
     assert execution.orders == []
-    assert runner.store.dashboard_snapshot()["recent_events"][0]["message"] == (
-        "market not accepting orders"
+    snapshot = runner.store.dashboard_snapshot()
+    assert snapshot["recent_events"][0]["message"] == "market not accepting orders"
+    assert snapshot["market_status"]["state"] == "not_accepting_orders"
+    assert snapshot["market_status"]["slug"] == "slug"
+
+
+@pytest.mark.asyncio
+async def test_bot_runner_records_ready_market_status_before_deciding(tmp_path):
+    runner = BotRunner(
+        config=_config(),
+        market_discovery=FakeMarketDiscovery(),
+        orderbook_client=FakeOrderbookClient(),
+        execution=FakeExecution(),
+        store_path=tmp_path / "bot.sqlite3",
+        reference_start_price=100.0,
+        latest_feed=_feed(),
     )
+
+    await runner.run_once(now=datetime(2026, 5, 12, 21, 3, tzinfo=UTC))
+
+    assert runner.store.dashboard_snapshot()["market_status"]["state"] == "ready"
 
 
 @pytest.mark.asyncio

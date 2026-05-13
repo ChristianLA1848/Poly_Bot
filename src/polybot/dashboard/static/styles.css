@@ -74,6 +74,7 @@ h2 {
 }
 
 .metrics,
+.market-panel,
 .grid {
   display: grid;
   gap: 16px;
@@ -81,6 +82,10 @@ h2 {
 
 .metrics {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 16px;
+}
+
+.market-panel {
   margin-bottom: 16px;
 }
 
@@ -176,6 +181,42 @@ h2 {
   white-space: nowrap;
 }
 
+.market-details {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  margin: 0;
+}
+
+.market-details div {
+  min-width: 0;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 18px;
+}
+
+.market-details div:nth-child(3n) {
+  border-right: 0;
+}
+
+.market-details div:nth-last-child(-n + 3) {
+  border-bottom: 0;
+}
+
+.market-details dt {
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.market-details dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
 @media (max-width: 760px) {
   .topbar,
   .row {
@@ -184,7 +225,21 @@ h2 {
 
   .metrics,
   .grid,
-  .row {
+  .row,
+  .market-details {
     grid-template-columns: 1fr;
+  }
+
+  .market-details div,
+  .market-details div:nth-child(3n) {
+    border-right: 0;
+  }
+
+  .market-details div:nth-last-child(-n + 3) {
+    border-bottom: 1px solid var(--border);
+  }
+
+  .market-details div:last-child {
+    border-bottom: 0;
   }
 }

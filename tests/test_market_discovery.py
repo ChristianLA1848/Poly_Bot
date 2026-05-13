@@ -134,6 +134,16 @@ class FakeMarketsClient:
         return FakeResponse(self.payload)
 
 
+class FakeDiscoveryClient:
+    def __init__(self, payloads):
+        self.payloads = payloads
+        self.requests = []
+
+    async def get(self, path, params):
+        self.requests.append((path, params))
+        return FakeResponse(self.payloads[path])
+
+
 @pytest.mark.asyncio
 async def test_market_discovery_finds_btc_updown_slug():
     payload = [
@@ -166,3 +176,48 @@ async def test_market_discovery_finds_question_with_up_or_down_words():
 
     assert market is not None
     assert market.question.startswith("Bitcoin Up or Down")
+
+
+@pytest.mark.asyncio
+async def test_market_discovery_prefers_accepting_order_market():
+    payload = [
+        BASE_MARKET_PAYLOAD
+        | {
+            "slug": "btc-updown-5m-1778646300",
+            "acceptingOrders": False,
+            "endDateIso": "2026-05-13T00:35:00Z",
+        },
+        BASE_MARKET_PAYLOAD
+        | {
+            "slug": "btc-updown-5m-1778646600",
+            "acceptingOrders": True,
+            "endDateIso": "2026-05-13T00:40:00Z",
+        },
+    ]
+    discovery = market_discovery.MarketDiscovery(client=FakeMarketsClient(payload))
+
+    market = await discovery.find_btc_5m_market()
+
+    assert market is not None
+    assert market.slug == "btc-updown-5m-1778646600"
+
+
+@pytest.mark.asyncio
+async def test_market_discovery_uses_public_search_fallback():
+    search_market = BASE_MARKET_PAYLOAD | {
+        "slug": "btc-updown-5m-1778646600",
+        "acceptingOrders": True,
+    }
+    client = FakeDiscoveryClient(
+        {
+            "/markets": [],
+            "/public-search": {"events": [{"markets": [search_market]}]},
+        }
+    )
+    discovery = market_discovery.MarketDiscovery(client=client)
+
+    market = await discovery.find_btc_5m_market()
+
+    assert market is not None
+    assert market.slug == "btc-updown-5m-1778646600"
+    assert [request[0] for request in client.requests] == ["/markets", "/public-search"]

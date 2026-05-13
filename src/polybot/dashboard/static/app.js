@@ -5,6 +5,13 @@ const decisionsList = document.querySelector("#decisions");
 const eventsList = document.querySelector("#events");
 const decisionCount = document.querySelector("#decision-count");
 const eventCount = document.querySelector("#event-count");
+const marketState = document.querySelector("#market-state");
+const marketMessage = document.querySelector("#market-message");
+const marketSlug = document.querySelector("#market-slug");
+const marketQuestion = document.querySelector("#market-question");
+const marketEndTime = document.querySelector("#market-end-time");
+const marketAcceptingOrders = document.querySelector("#market-accepting-orders");
+const marketOrderRules = document.querySelector("#market-order-rules");
 
 function formatCurrency(value) {
   return new Intl.NumberFormat("en-US", {
@@ -76,6 +83,19 @@ function renderEvents(events) {
   }
 }
 
+function renderMarketStatus(status) {
+  const market = status || {};
+  marketState.textContent = market.state || "unknown";
+  marketMessage.textContent = market.message || "No market checked yet.";
+  marketSlug.textContent = market.slug || "-";
+  marketQuestion.textContent = market.question || "-";
+  marketEndTime.textContent = market.end_time || "-";
+  marketAcceptingOrders.textContent =
+    typeof market.accepting_orders === "boolean" ? String(market.accepting_orders) : "-";
+  marketOrderRules.textContent =
+    market.tick_size && market.min_size ? `${market.tick_size} / ${market.min_size}` : "-";
+}
+
 async function refreshSnapshot() {
   const response = await fetch("/api/snapshot");
   if (!response.ok) {
@@ -87,6 +107,7 @@ async function refreshSnapshot() {
   statusValue.textContent = status;
   statusPill.textContent = status;
   pnlValue.textContent = formatCurrency(snapshot.today_pnl);
+  renderMarketStatus(snapshot.market_status);
   renderDecisions(snapshot.recent_decisions || []);
   renderEvents(snapshot.recent_events || []);
 }

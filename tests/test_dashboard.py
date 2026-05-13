@@ -29,6 +29,7 @@ def test_dashboard_root_serves_html(tmp_path):
     assert response.status_code == 200
     assert "text/html" in response.headers["content-type"]
     assert "Polybot Dashboard" in response.text
+    assert "Market Status" in response.text
 
 
 def test_dashboard_snapshot_includes_defaults(tmp_path):
@@ -42,3 +43,4 @@ def test_dashboard_snapshot_includes_defaults(tmp_path):
     assert response.status_code == 200
     assert response.json()["bot_status"] == "ready"
     assert response.json()["today_pnl"] == 0.0
+    assert response.json()["market_status"]["state"] == "unknown"

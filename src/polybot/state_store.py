@@ -1,9 +1,25 @@
+from datetime import datetime
 import json
 from pathlib import Path
 import sqlite3
 from typing import Any
 
-from polybot.models import BotEvent, Decision
+from polybot.models import BotEvent, Decision, Market
+
+
+DEFAULT_MARKET_STATUS = {
+    "state": "unknown",
+    "message": "No market checked yet.",
+    "checked_at": None,
+    "market_id": None,
+    "slug": None,
+    "question": None,
+    "start_time": None,
+    "end_time": None,
+    "accepting_orders": None,
+    "tick_size": None,
+    "min_size": None,
+}
 
 
 class StateStore:
@@ -33,6 +49,10 @@ class StateStore:
                     level TEXT NOT NULL,
                     message TEXT NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS market_status (
+                    id INTEGER PRIMARY KEY CHECK (id = 1),
+                    payload TEXT NOT NULL
+                );
                 """
             )
 
@@ -55,6 +75,39 @@ class StateStore:
                 (event.created_at.isoformat(), event.level, event.message),
             )
 
+    def record_market_status(
+        self,
+        state: str,
+        message: str,
+        checked_at: datetime,
+        market: Market | None = None,
+    ) -> None:
+        payload = DEFAULT_MARKET_STATUS | {
+            "state": state,
+            "message": message,
+            "checked_at": checked_at.isoformat(),
+        }
+        if market is not None:
+            payload |= {
+                "market_id": market.market_id,
+                "slug": market.slug,
+                "question": market.question,
+                "start_time": market.start_time.isoformat() if market.start_time else None,
+                "end_time": market.end_time.isoformat(),
+                "accepting_orders": market.accepting_orders,
+                "tick_size": market.tick_size,
+                "min_size": market.min_size,
+            }
+
+        with self.connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO market_status (id, payload) VALUES (1, ?)
+                ON CONFLICT(id) DO UPDATE SET payload = excluded.payload
+                """,
+                (json.dumps(payload, sort_keys=True),),
+            )
+
     def dashboard_snapshot(self) -> dict[str, Any]:
         """Return dashboard rows by event time, newest first, with id as tie-breaker."""
         with self.connect() as conn:
@@ -64,8 +117,14 @@ class StateStore:
             events = conn.execute(
                 "SELECT created_at, level, message FROM events ORDER BY created_at DESC, id DESC LIMIT 50"
             ).fetchall()
+            market_status = conn.execute(
+                "SELECT payload FROM market_status WHERE id = 1"
+            ).fetchone()
 
         return {
             "recent_decisions": [json.loads(row["payload"]) for row in decisions],
             "recent_events": [dict(row) for row in events],
+            "market_status": json.loads(market_status["payload"])
+            if market_status
+            else DEFAULT_MARKET_STATUS,
         }

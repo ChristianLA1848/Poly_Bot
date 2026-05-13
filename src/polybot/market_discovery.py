@@ -66,6 +66,20 @@ def _is_btc_5m_updown_market(item: dict[str, Any]) -> bool:
     return (has_btc_slug or has_question_match) and bool(item.get("clobTokenIds"))
 
 
+def _extract_public_search_markets(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    markets = list(payload.get("markets") or [])
+    for event in payload.get("events") or []:
+        markets.extend(event.get("markets") or [])
+    return markets
+
+
+def _select_best_market(items: list[dict[str, Any]]) -> Market | None:
+    markets = [parse_btc_market(item) for item in items if _is_btc_5m_updown_market(item)]
+    if not markets:
+        return None
+    return sorted(markets, key=lambda market: (not market.accepting_orders, market.end_time))[0]
+
+
 class MarketDiscovery:
     def __init__(self, client: httpx.AsyncClient | None = None):
         self._owns_client = client is None
@@ -94,7 +108,18 @@ class MarketDiscovery:
         )
         response.raise_for_status()
 
-        for item in response.json():
-            if _is_btc_5m_updown_market(item):
-                return parse_btc_market(item)
-        return None
+        market = _select_best_market(response.json())
+        if market is not None:
+            return market
+
+        search_response = await self.client.get(
+            "/public-search",
+            params={
+                "q": "Bitcoin Up or Down",
+                "limit_per_type": 10,
+                "events_status": "active",
+                "keep_closed_markets": 0,
+            },
+        )
+        search_response.raise_for_status()
+        return _select_best_market(_extract_public_search_markets(search_response.json()))
