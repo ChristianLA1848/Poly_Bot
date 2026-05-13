@@ -147,6 +147,19 @@ def test_dashboard_snapshot_includes_settings_when_default_config_supplied(tmp_p
     assert response.json()["settings"] == cfg.model_dump(mode="json")
 
 
+def test_dashboard_snapshot_includes_strategy_metadata(tmp_path):
+    store = StateStore(tmp_path / "bot.sqlite3")
+    store.initialize()
+    app = create_dashboard_app(store, dashboard_config_for_test(), control_service=None)
+    client = TestClient(app)
+
+    response = client.get("/api/snapshot")
+
+    assert response.status_code == 200
+    names = [item["name"] for item in response.json()["strategy_metadata"]]
+    assert names == ["baseline_momentum", "late_window_5m", "trend_following"]
+
+
 def test_dashboard_root_contains_tabs_controls_and_settings(tmp_path):
     store = StateStore(tmp_path / "bot.sqlite3")
     store.initialize()
@@ -167,6 +180,9 @@ def test_dashboard_root_contains_tabs_controls_and_settings(tmp_path):
     assert 'id="stop-bot"' in html
     assert 'id="btc-price"' in html
     assert 'id="target-price"' in html
+    assert 'id="strategy-reason-code"' in html
+    assert 'id="strategy-edge"' in html
+    assert 'id="strategy-confidence"' in html
     assert 'name="bot.mode"' in html
     assert 'name="bot.cycle_seconds" min="0.01"' in html
     assert 'name="strategy.name"' in html

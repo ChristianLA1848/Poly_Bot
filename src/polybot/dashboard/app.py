@@ -9,6 +9,7 @@ from pydantic import ValidationError
 
 from polybot.config import BotConfig
 from polybot.state_store import StateStore
+from polybot.strategies.base import list_strategy_metadata
 
 STATIC_DIR = Path(__file__).with_name("static")
 
@@ -34,6 +35,15 @@ def create_dashboard_app(
         data = store.dashboard_snapshot()
         data.setdefault("bot_status", "ready")
         data.setdefault("today_pnl", 0.0)
+        data["strategy_metadata"] = [
+            {
+                "name": item.name,
+                "label": item.label,
+                "market_profiles": list(item.market_profiles),
+                "description": item.description,
+            }
+            for item in list_strategy_metadata()
+        ]
         if default_config is not None:
             data.setdefault("settings", store.get_settings(default_config))
         return data

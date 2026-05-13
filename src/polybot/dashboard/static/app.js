@@ -4,6 +4,9 @@ const pnlValue = document.querySelector("#pnl-value");
 const btcPrice = document.querySelector("#btc-price");
 const targetPrice = document.querySelector("#target-price");
 const targetDelta = document.querySelector("#target-delta");
+const strategyReasonCode = document.querySelector("#strategy-reason-code");
+const strategyEdge = document.querySelector("#strategy-edge");
+const strategyConfidence = document.querySelector("#strategy-confidence");
 const decisionsList = document.querySelector("#decisions");
 const eventsList = document.querySelector("#events");
 const decisionCount = document.querySelector("#decision-count");
@@ -164,6 +167,19 @@ function renderDecisions(decisions) {
   }
 }
 
+function renderStrategyMetrics(decisions) {
+  const latestDecision = (decisions || [])[0] || {};
+  strategyReasonCode.textContent = latestDecision.reason_code || "-";
+  strategyEdge.textContent =
+    latestDecision.edge === null || latestDecision.edge === undefined
+      ? "-"
+      : Number(latestDecision.edge).toFixed(4);
+  strategyConfidence.textContent =
+    latestDecision.confidence === null || latestDecision.confidence === undefined
+      ? "-"
+      : `${(Number(latestDecision.confidence) * 100).toFixed(1)}%`;
+}
+
 function renderEvents(events) {
   eventCount.textContent = events.length;
   eventsList.innerHTML = "";
@@ -226,7 +242,9 @@ async function refreshSnapshot() {
   renderFeedStatus(snapshot.feed_status);
   renderMarketStatus(snapshot.market_status);
   renderSettings(snapshot.settings);
-  renderDecisions(snapshot.recent_decisions || []);
+  const recentDecisions = snapshot.recent_decisions || [];
+  renderStrategyMetrics(recentDecisions);
+  renderDecisions(recentDecisions);
   renderEvents(snapshot.recent_events || []);
 }
 
