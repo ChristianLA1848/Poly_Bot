@@ -1,39 +1,40 @@
-const statusValue = document.querySelector("#status-value");
-const statusPill = document.querySelector("#bot-status");
-const pnlValue = document.querySelector("#pnl-value");
-const btcPrice = document.querySelector("#btc-price");
-const targetPrice = document.querySelector("#target-price");
-const targetDelta = document.querySelector("#target-delta");
-const strategyReasonCode = document.querySelector("#strategy-reason-code");
-const strategyEdge = document.querySelector("#strategy-edge");
-const strategyConfidence = document.querySelector("#strategy-confidence");
-const strategyEstimatedProbability = document.querySelector("#strategy-estimated-probability");
-const strategyMarketProbability = document.querySelector("#strategy-market-probability");
-const strategyCompatibility = document.querySelector("#strategy-compatibility");
-const decisionsList = document.querySelector("#decisions");
-const eventsList = document.querySelector("#events");
-const decisionCount = document.querySelector("#decision-count");
-const eventCount = document.querySelector("#event-count");
-const marketState = document.querySelector("#market-state");
-const marketMessage = document.querySelector("#market-message");
-const marketSlug = document.querySelector("#market-slug");
-const marketQuestion = document.querySelector("#market-question");
-const marketEndTime = document.querySelector("#market-end-time");
-const marketAcceptingOrders = document.querySelector("#market-accepting-orders");
-const marketOrderRules = document.querySelector("#market-order-rules");
-const startBotButton = document.querySelector("#start-bot");
-const stopBotButton = document.querySelector("#stop-bot");
-const settingsForm = document.querySelector("#settings-form");
-const settingsStatus = document.querySelector("#settings-status");
-const strategySelect = document.querySelector('select[name="strategy.name"]');
-const paperTotalPnl = document.querySelector("#paper-total-pnl");
-const paperWinRate = document.querySelector("#paper-win-rate");
-const paperTradeCounts = document.querySelector("#paper-trade-counts");
-const paperAverageEdge = document.querySelector("#paper-average-edge");
-const equityCurve = document.querySelector("#equity-curve");
-const equityPointCount = document.querySelector("#equity-point-count");
-const paperTradeCount = document.querySelector("#paper-trade-count");
-const paperTradesList = document.querySelector("#paper-trades");
+const dashboardDocument = typeof document !== "undefined" ? document : null;
+const statusValue = dashboardDocument?.querySelector("#status-value");
+const statusPill = dashboardDocument?.querySelector("#bot-status");
+const pnlValue = dashboardDocument?.querySelector("#pnl-value");
+const btcPrice = dashboardDocument?.querySelector("#btc-price");
+const targetPrice = dashboardDocument?.querySelector("#target-price");
+const targetDelta = dashboardDocument?.querySelector("#target-delta");
+const strategyReasonCode = dashboardDocument?.querySelector("#strategy-reason-code");
+const strategyEdge = dashboardDocument?.querySelector("#strategy-edge");
+const strategyConfidence = dashboardDocument?.querySelector("#strategy-confidence");
+const strategyEstimatedProbability = dashboardDocument?.querySelector("#strategy-estimated-probability");
+const strategyMarketProbability = dashboardDocument?.querySelector("#strategy-market-probability");
+const strategyCompatibility = dashboardDocument?.querySelector("#strategy-compatibility");
+const decisionsList = dashboardDocument?.querySelector("#decisions");
+const eventsList = dashboardDocument?.querySelector("#events");
+const decisionCount = dashboardDocument?.querySelector("#decision-count");
+const eventCount = dashboardDocument?.querySelector("#event-count");
+const marketState = dashboardDocument?.querySelector("#market-state");
+const marketMessage = dashboardDocument?.querySelector("#market-message");
+const marketSlug = dashboardDocument?.querySelector("#market-slug");
+const marketQuestion = dashboardDocument?.querySelector("#market-question");
+const marketEndTime = dashboardDocument?.querySelector("#market-end-time");
+const marketAcceptingOrders = dashboardDocument?.querySelector("#market-accepting-orders");
+const marketOrderRules = dashboardDocument?.querySelector("#market-order-rules");
+const startBotButton = dashboardDocument?.querySelector("#start-bot");
+const stopBotButton = dashboardDocument?.querySelector("#stop-bot");
+const settingsForm = dashboardDocument?.querySelector("#settings-form");
+const settingsStatus = dashboardDocument?.querySelector("#settings-status");
+const strategySelect = dashboardDocument?.querySelector('select[name="strategy.name"]');
+const paperTotalPnl = dashboardDocument?.querySelector("#paper-total-pnl");
+const paperWinRate = dashboardDocument?.querySelector("#paper-win-rate");
+const paperTradeCounts = dashboardDocument?.querySelector("#paper-trade-counts");
+const paperAverageEdge = dashboardDocument?.querySelector("#paper-average-edge");
+const equityCurve = dashboardDocument?.querySelector("#equity-curve");
+const equityPointCount = dashboardDocument?.querySelector("#equity-point-count");
+const paperTradeCount = dashboardDocument?.querySelector("#paper-trade-count");
+const paperTradesList = dashboardDocument?.querySelector("#paper-trades");
 
 let currentSettings = {};
 
@@ -105,6 +106,10 @@ function setNested(target, path, value) {
   }
 
   cursor[parts.at(-1)] = value;
+}
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
 }
 
 function cloneSettings(settings) {
@@ -297,6 +302,50 @@ function renderFeedStatus(feed) {
   targetDelta.textContent = deltaParts.length > 0 ? deltaParts.join(" / ") : "-";
 }
 
+function equityCurveSvg(points) {
+  if (!points || points.length === 0) {
+    return "";
+  }
+
+  const width = 640;
+  const height = 220;
+  const padding = 18;
+  const plotWidth = width - padding * 2;
+  const plotHeight = height - padding * 2;
+  const values = points.map((point) => Number(point.cumulative_pnl));
+  const min = Math.min(0, ...values);
+  const max = Math.max(0, ...values);
+  const span = max - min || 1;
+  const coordinates = values.map((value, index) => {
+    const x = points.length === 1 ? width / 2 : padding + (index / (points.length - 1)) * plotWidth;
+    const y = clamp(
+      padding + plotHeight - ((value - min) / span) * plotHeight,
+      padding,
+      height - padding,
+    );
+    return { x, y };
+  });
+  const path = coordinates
+    .map((value, index) => {
+      return `${index === 0 ? "M" : "L"} ${value.x.toFixed(2)} ${value.y.toFixed(2)}`;
+    })
+    .join(" ");
+  const zeroY = clamp(padding + plotHeight - ((0 - min) / span) * plotHeight, padding, height - padding);
+  const lineClass = values.at(-1) >= 0 ? "positive-line" : "negative-line";
+  const singlePointMarker =
+    points.length === 1
+      ? `<circle cx="${coordinates[0].x.toFixed(2)}" cy="${coordinates[0].y.toFixed(2)}" r="6" class="equity-point"></circle>`
+      : "";
+
+  return `
+    <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Cumulative paper P/L">
+      <line x1="${padding}" y1="${zeroY.toFixed(2)}" x2="${width - padding}" y2="${zeroY.toFixed(2)}" class="zero-line"></line>
+      <path d="${path}" class="${lineClass}"></path>
+      ${singlePointMarker}
+    </svg>
+  `;
+}
+
 function renderEquityCurve(points) {
   if (!equityCurve) return;
   equityCurve.innerHTML = "";
@@ -308,26 +357,7 @@ function renderEquityCurve(points) {
   }
   equityCurve.classList.remove("is-empty");
   setText(equityPointCount, String(points.length));
-  const width = 640;
-  const height = 220;
-  const values = points.map((point) => Number(point.cumulative_pnl));
-  const min = Math.min(0, ...values);
-  const max = Math.max(0, ...values);
-  const span = max - min || 1;
-  const path = values
-    .map((value, index) => {
-      const x = points.length === 1 ? width : (index / (points.length - 1)) * width;
-      const y = height - ((value - min) / span) * height;
-      return `${index === 0 ? "M" : "L"} ${x.toFixed(2)} ${y.toFixed(2)}`;
-    })
-    .join(" ");
-  const zeroY = height - ((0 - min) / span) * height;
-  equityCurve.innerHTML = `
-    <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Cumulative paper P/L">
-      <line x1="0" y1="${zeroY.toFixed(2)}" x2="${width}" y2="${zeroY.toFixed(2)}" class="zero-line"></line>
-      <path d="${path}" class="${values.at(-1) >= 0 ? "positive-line" : "negative-line"}"></path>
-    </svg>
-  `;
+  equityCurve.innerHTML = equityCurveSvg(points);
 }
 
 function renderPaperTrades(trades) {
@@ -390,85 +420,91 @@ async function loadSettings() {
   renderSettings(await response.json());
 }
 
-for (const tab of document.querySelectorAll("[data-tab-target]")) {
-  tab.addEventListener("click", () => {
-    const target = tab.dataset.tabTarget;
-    document.querySelectorAll("[data-tab-target]").forEach((item) => {
-      const isActive = item === tab;
-      item.classList.toggle("is-active", isActive);
-      item.setAttribute("aria-selected", String(isActive));
-    });
-    document
-      .querySelectorAll("[data-tab-panel]")
-      .forEach((panel) => panel.classList.toggle("is-active", panel.dataset.tabPanel === target));
-  });
+if (typeof module !== "undefined") {
+  module.exports = { equityCurveSvg };
 }
 
-startBotButton.addEventListener("click", async () => {
-  setControlBusy(true);
-
-  try {
-    const response = await fetch("/api/bot/start", { method: "POST" });
-    if (!response.ok) {
-      throw new Error(await errorDetail(response, `Start request failed: ${response.status}`));
-    }
-    await refreshSnapshot();
-  } catch (error) {
-    statusValue.textContent = error.message;
-    statusPill.textContent = "error";
-  } finally {
-    setControlBusy(false);
-  }
-});
-
-stopBotButton.addEventListener("click", async () => {
-  setControlBusy(true);
-
-  try {
-    const response = await fetch("/api/bot/stop", { method: "POST" });
-    if (!response.ok) {
-      throw new Error(await errorDetail(response, `Stop request failed: ${response.status}`));
-    }
-    await refreshSnapshot();
-  } catch (error) {
-    statusValue.textContent = error.message;
-    statusPill.textContent = "error";
-  } finally {
-    setControlBusy(false);
-  }
-});
-
-settingsForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  settingsStatus.textContent = "Saving...";
-
-  try {
-    const response = await fetch("/api/settings", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(settingsFromForm()),
+if (dashboardDocument) {
+  for (const tab of dashboardDocument.querySelectorAll("[data-tab-target]")) {
+    tab.addEventListener("click", () => {
+      const target = tab.dataset.tabTarget;
+      dashboardDocument.querySelectorAll("[data-tab-target]").forEach((item) => {
+        const isActive = item === tab;
+        item.classList.toggle("is-active", isActive);
+        item.setAttribute("aria-selected", String(isActive));
+      });
+      dashboardDocument
+        .querySelectorAll("[data-tab-panel]")
+        .forEach((panel) => panel.classList.toggle("is-active", panel.dataset.tabPanel === target));
     });
-    if (!response.ok) {
-      throw new Error(await errorDetail(response, `Settings request failed: ${response.status}`));
-    }
-
-    renderSettings(await response.json());
-    settingsStatus.textContent = "Saved for next start.";
-  } catch (error) {
-    settingsStatus.textContent = error.message;
   }
-});
 
-loadSettings().catch(() => {
-  settingsStatus.textContent = "Settings unavailable.";
-});
+  startBotButton.addEventListener("click", async () => {
+    setControlBusy(true);
 
-refreshSnapshot().catch(() => {
-  setRuntimeStatus("offline");
-});
+    try {
+      const response = await fetch("/api/bot/start", { method: "POST" });
+      if (!response.ok) {
+        throw new Error(await errorDetail(response, `Start request failed: ${response.status}`));
+      }
+      await refreshSnapshot();
+    } catch (error) {
+      statusValue.textContent = error.message;
+      statusPill.textContent = "error";
+    } finally {
+      setControlBusy(false);
+    }
+  });
 
-setInterval(() => {
+  stopBotButton.addEventListener("click", async () => {
+    setControlBusy(true);
+
+    try {
+      const response = await fetch("/api/bot/stop", { method: "POST" });
+      if (!response.ok) {
+        throw new Error(await errorDetail(response, `Stop request failed: ${response.status}`));
+      }
+      await refreshSnapshot();
+    } catch (error) {
+      statusValue.textContent = error.message;
+      statusPill.textContent = "error";
+    } finally {
+      setControlBusy(false);
+    }
+  });
+
+  settingsForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    settingsStatus.textContent = "Saving...";
+
+    try {
+      const response = await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(settingsFromForm()),
+      });
+      if (!response.ok) {
+        throw new Error(await errorDetail(response, `Settings request failed: ${response.status}`));
+      }
+
+      renderSettings(await response.json());
+      settingsStatus.textContent = "Saved for next start.";
+    } catch (error) {
+      settingsStatus.textContent = error.message;
+    }
+  });
+
+  loadSettings().catch(() => {
+    settingsStatus.textContent = "Settings unavailable.";
+  });
+
   refreshSnapshot().catch(() => {
     setRuntimeStatus("offline");
   });
-}, 5000);
+
+  setInterval(() => {
+    refreshSnapshot().catch(() => {
+      setRuntimeStatus("offline");
+    });
+  }, 5000);
+}

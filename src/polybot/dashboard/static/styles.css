@@ -309,6 +309,12 @@ button {
   stroke: #b42318;
 }
 
+.equity-point {
+  fill: var(--accent);
+  stroke: var(--surface);
+  stroke-width: 4;
+}
+
 .row,
 .empty {
   padding: 14px 18px;
