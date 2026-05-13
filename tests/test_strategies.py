@@ -90,6 +90,54 @@ def test_late_window_alias_loads_late_window_5m_strategy():
     assert strategy.name == "late_window_5m"
 
 
+def test_late_window_5m_rejects_missing_target_price():
+    context = _context(reference=0.0, now=datetime(2026, 5, 12, 21, 4, 20, tzinfo=UTC))
+
+    decision = load_strategy("late_window_5m").decide(context)
+
+    assert decision.action == DecisionAction.NO_TRADE
+    assert decision.reason_code == "target_missing"
+
+
+def test_late_window_5m_rejects_non_btc_5m_market():
+    now = datetime(2026, 5, 12, 21, 0, tzinfo=UTC)
+    market = Market(
+        "m",
+        "Bitcoin Up or Down - 1h",
+        "btc-updown-1h",
+        "up",
+        "down",
+        now,
+        now + timedelta(hours=1),
+        0.01,
+        5.0,
+        True,
+    )
+
+    decision = load_strategy("late_window_5m").decide(
+        _context(market=market, now=now + timedelta(minutes=55))
+    )
+
+    assert decision.action == DecisionAction.NO_TRADE
+    assert decision.reason_code == "strategy_not_supported"
+
+
+def test_late_window_5m_buys_up_with_reason_code_and_edge():
+    decision = load_strategy("late_window_5m").decide(
+        _context(
+            reference=100.0,
+            price=100.2,
+            now=datetime(2026, 5, 12, 21, 4, 20, tzinfo=UTC),
+            up_ask=0.84,
+        )
+    )
+
+    assert decision.action == DecisionAction.BUY_UP
+    assert decision.reason_code == "late_window_high_confidence"
+    assert decision.market_probability == 0.84
+    assert decision.edge == pytest.approx(decision.estimated_probability - 0.84)
+
+
 def test_strategy_decision_includes_reason_code_and_edge_fields():
     decision = load_strategy("baseline_momentum").decide(_context())
 
@@ -155,7 +203,7 @@ def test_late_window_strategy_marks_sub_minimum_remaining_time_too_late():
     )
 
     assert decision.action == DecisionAction.NO_TRADE
-    assert decision.reason == "outside late window"
+    assert decision.reason == "too close to resolution"
     assert decision.reason_code == "too_late"
 
 
@@ -298,7 +346,8 @@ def test_late_window_strategy_skips_non_positive_reference(reference):
     )
 
     assert decision.action == DecisionAction.NO_TRADE
-    assert decision.reason == "reference start price must be positive"
+    assert decision.reason == "target price missing"
+    assert decision.reason_code == "target_missing"
 
 
 def test_load_strategy_rejects_unknown_name():
