@@ -12,7 +12,14 @@ class LateWindowStrategy:
 
     def decide(self, context: StrategyContext) -> Decision:
         seconds_remaining = (context.market.end_time - context.now).total_seconds()
-        if seconds_remaining < 20 or seconds_remaining > 60:
+        if seconds_remaining < 20:
+            return _no_trade(
+                self.name,
+                context,
+                reason="outside late window",
+                reason_code="too_late",
+            )
+        if seconds_remaining > 60:
             return _no_trade(
                 self.name,
                 context,

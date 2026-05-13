@@ -133,6 +133,16 @@ def test_late_window_strategy_waits_outside_window():
     assert decision.reason == "outside late window"
 
 
+def test_late_window_strategy_marks_sub_minimum_remaining_time_too_late():
+    decision = load_strategy("late_window").decide(
+        _context(now=datetime(2026, 5, 12, 21, 4, 50, tzinfo=UTC))
+    )
+
+    assert decision.action == DecisionAction.NO_TRADE
+    assert decision.reason == "outside late window"
+    assert decision.reason_code == "too_late"
+
+
 def test_late_window_strategy_accepts_trade_inside_return_band():
     market = _market(end_offset=timedelta(minutes=5))
     decision = load_strategy("late_window").decide(
