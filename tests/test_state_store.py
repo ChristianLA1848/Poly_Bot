@@ -51,6 +51,84 @@ def test_state_store_empty_snapshot(tmp_path):
             "tick_size": None,
             "min_size": None,
         },
+        "runtime_status": {
+            "state": "stopped",
+            "message": "Bot is stopped.",
+            "updated_at": None,
+            "last_error": None,
+        },
+        "feed_status": {
+            "btc_price": None,
+            "fresh": None,
+            "max_deviation_bps": None,
+            "created_at": None,
+            "target_price": None,
+            "delta": None,
+            "delta_pct": None,
+        },
+    }
+
+
+def test_state_store_empty_snapshot_includes_runtime_and_feed_defaults(tmp_path):
+    store = StateStore(tmp_path / "bot.sqlite3")
+    store.initialize()
+
+    snapshot = store.dashboard_snapshot()
+
+    assert snapshot["runtime_status"] == {
+        "state": "stopped",
+        "message": "Bot is stopped.",
+        "updated_at": None,
+        "last_error": None,
+    }
+    assert snapshot["feed_status"] == {
+        "btc_price": None,
+        "fresh": None,
+        "max_deviation_bps": None,
+        "created_at": None,
+        "target_price": None,
+        "delta": None,
+        "delta_pct": None,
+    }
+
+
+def test_state_store_records_runtime_status(tmp_path):
+    store = StateStore(tmp_path / "bot.sqlite3")
+    store.initialize()
+    updated_at = datetime(2026, 5, 13, 8, 0, tzinfo=UTC)
+
+    store.record_runtime_status("running", "Bot loop running.", updated_at)
+
+    assert store.dashboard_snapshot()["runtime_status"] == {
+        "state": "running",
+        "message": "Bot loop running.",
+        "updated_at": updated_at.isoformat(),
+        "last_error": None,
+    }
+
+
+def test_state_store_records_feed_status_with_target_delta(tmp_path):
+    store = StateStore(tmp_path / "bot.sqlite3")
+    store.initialize()
+    created_at = datetime(2026, 5, 13, 8, 0, tzinfo=UTC)
+    feed = FeedAggregate(
+        reference_price=103250.0,
+        prices=[FeedPrice("coinbase", "BTC-USD", 103250.0, 1)],
+        max_deviation_bps=1.4,
+        fresh=True,
+        created_at=created_at,
+    )
+
+    store.record_feed_status(feed, target_price=103000.0)
+
+    assert store.dashboard_snapshot()["feed_status"] == {
+        "btc_price": 103250.0,
+        "fresh": True,
+        "max_deviation_bps": 1.4,
+        "created_at": created_at.isoformat(),
+        "target_price": 103000.0,
+        "delta": 250.0,
+        "delta_pct": 0.242718,
     }
 
 

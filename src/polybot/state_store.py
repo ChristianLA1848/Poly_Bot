@@ -4,7 +4,7 @@ from pathlib import Path
 import sqlite3
 from typing import Any
 
-from polybot.models import BotEvent, Decision, Market
+from polybot.models import BotEvent, Decision, FeedAggregate, Market
 
 
 DEFAULT_MARKET_STATUS = {
@@ -19,6 +19,25 @@ DEFAULT_MARKET_STATUS = {
     "accepting_orders": None,
     "tick_size": None,
     "min_size": None,
+}
+
+
+DEFAULT_RUNTIME_STATUS = {
+    "state": "stopped",
+    "message": "Bot is stopped.",
+    "updated_at": None,
+    "last_error": None,
+}
+
+
+DEFAULT_FEED_STATUS = {
+    "btc_price": None,
+    "fresh": None,
+    "max_deviation_bps": None,
+    "created_at": None,
+    "target_price": None,
+    "delta": None,
+    "delta_pct": None,
 }
 
 
@@ -50,6 +69,14 @@ class StateStore:
                     message TEXT NOT NULL
                 );
                 CREATE TABLE IF NOT EXISTS market_status (
+                    id INTEGER PRIMARY KEY CHECK (id = 1),
+                    payload TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS runtime_status (
+                    id INTEGER PRIMARY KEY CHECK (id = 1),
+                    payload TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS feed_status (
                     id INTEGER PRIMARY KEY CHECK (id = 1),
                     payload TEXT NOT NULL
                 );
@@ -99,10 +126,42 @@ class StateStore:
                 "min_size": market.min_size,
             }
 
+        self._upsert_singleton_payload("market_status", payload)
+
+    def record_runtime_status(
+        self,
+        state: str,
+        message: str,
+        updated_at: datetime,
+        last_error: str | None = None,
+    ) -> None:
+        payload = DEFAULT_RUNTIME_STATUS | {
+            "state": state,
+            "message": message,
+            "updated_at": updated_at.isoformat(),
+            "last_error": last_error,
+        }
+        self._upsert_singleton_payload("runtime_status", payload)
+
+    def record_feed_status(self, feed: FeedAggregate, target_price: float | None) -> None:
+        delta = feed.reference_price - target_price if target_price is not None else None
+        delta_pct = round((delta / target_price) * 100, 6) if target_price else None
+        payload = DEFAULT_FEED_STATUS | {
+            "btc_price": feed.reference_price,
+            "fresh": feed.fresh,
+            "max_deviation_bps": feed.max_deviation_bps,
+            "created_at": feed.created_at.isoformat(),
+            "target_price": target_price,
+            "delta": delta,
+            "delta_pct": delta_pct,
+        }
+        self._upsert_singleton_payload("feed_status", payload)
+
+    def _upsert_singleton_payload(self, table: str, payload: dict[str, Any]) -> None:
         with self.connect() as conn:
             conn.execute(
-                """
-                INSERT INTO market_status (id, payload) VALUES (1, ?)
+                f"""
+                INSERT INTO {table} (id, payload) VALUES (1, ?)
                 ON CONFLICT(id) DO UPDATE SET payload = excluded.payload
                 """,
                 (json.dumps(payload, sort_keys=True),),
@@ -120,6 +179,12 @@ class StateStore:
             market_status = conn.execute(
                 "SELECT payload FROM market_status WHERE id = 1"
             ).fetchone()
+            runtime_status = conn.execute(
+                "SELECT payload FROM runtime_status WHERE id = 1"
+            ).fetchone()
+            feed_status = conn.execute(
+                "SELECT payload FROM feed_status WHERE id = 1"
+            ).fetchone()
 
         return {
             "recent_decisions": [json.loads(row["payload"]) for row in decisions],
@@ -127,4 +192,10 @@ class StateStore:
             "market_status": json.loads(market_status["payload"])
             if market_status
             else DEFAULT_MARKET_STATUS,
+            "runtime_status": json.loads(runtime_status["payload"])
+            if runtime_status
+            else DEFAULT_RUNTIME_STATUS,
+            "feed_status": json.loads(feed_status["payload"])
+            if feed_status
+            else DEFAULT_FEED_STATUS,
         }
