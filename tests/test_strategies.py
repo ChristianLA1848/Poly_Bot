@@ -91,6 +91,64 @@ def test_trend_following_rejects_btc_5m_market():
     assert decision.reason_code == "trend_not_supported_for_market"
 
 
+def test_trend_following_rejects_unsupported_all_crypto_market():
+    now = datetime(2026, 5, 12, 21, 0, tzinfo=UTC)
+    market = Market(
+        "m",
+        "Weather Up or Down",
+        "weather-updown-1h",
+        "up",
+        "down",
+        now,
+        now + timedelta(hours=1),
+        0.01,
+        5.0,
+        True,
+    )
+
+    decision = load_strategy("trend_following").decide(
+        _context(
+            market=market,
+            reference=100.0,
+            price=102.0,
+            now=now + timedelta(minutes=10),
+            up_ask=0.50,
+        )
+    )
+
+    assert decision.action == DecisionAction.NO_TRADE
+    assert decision.reason_code == "trend_not_supported_for_market"
+
+
+def test_trend_following_rejects_longer_market_without_start_time():
+    now = datetime(2026, 5, 12, 21, 0, tzinfo=UTC)
+    market = Market(
+        "m",
+        "Bitcoin Up or Down - 1h",
+        "btc-updown-1h",
+        "up",
+        "down",
+        None,
+        now + timedelta(hours=1),
+        0.01,
+        5.0,
+        True,
+    )
+
+    decision = load_strategy("trend_following").decide(
+        _context(
+            market=market,
+            reference=100.0,
+            price=102.0,
+            now=now,
+            up_ask=0.50,
+        )
+    )
+
+    assert decision.action == DecisionAction.NO_TRADE
+    assert decision.reason_code == "trend_history_too_short"
+
+
 def test_trend_following_buys_up_on_longer_market_momentum():
     now = datetime(2026, 5, 12, 21, 0, tzinfo=UTC)
     market = Market(

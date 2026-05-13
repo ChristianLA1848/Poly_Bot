@@ -11,7 +11,7 @@ class TrendFollowingStrategy:
 
     def decide(self, context: StrategyContext) -> Decision:
         snapshot = context.snapshot
-        if snapshot.market_profile == "btc_5m":
+        if snapshot.market_profile != "longer_crypto":
             return _no_trade(
                 self.name,
                 context,
@@ -26,8 +26,8 @@ class TrendFollowingStrategy:
                 reason_code="target_missing",
             )
         if (
-            snapshot.seconds_elapsed is not None
-            and snapshot.seconds_elapsed < self.min_seconds_elapsed
+            snapshot.seconds_elapsed is None
+            or snapshot.seconds_elapsed < self.min_seconds_elapsed
         ):
             return _no_trade(
                 self.name,
