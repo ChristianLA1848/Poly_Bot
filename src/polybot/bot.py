@@ -100,7 +100,7 @@ class BotRunner:
         except ValueError as exc:
             self._record_event("warning", f"orderbook unavailable: {exc}", now)
             return
-        strategy = load_strategy(self.config.strategy.name)
+        strategy = load_strategy(self.config.strategy.name, late_window=self.config.late_window)
         context = StrategyContext(
             market=market,
             reference_start_price=self.reference_start_price,
@@ -126,7 +126,7 @@ class BotRunner:
             return
 
         selected_book = self._selected_book(decision.token_id, market.up_token_id, up_book, down_book)
-        risk_result = RiskGate(self.config.risk).evaluate(
+        risk_result = RiskGate(self.config.risk, self.config.late_window).evaluate(
             decision,
             self.latest_feed,
             selected_book,

@@ -2,6 +2,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from polybot.config import LateWindowSection
 from polybot.models import (
     DecisionAction,
     FeedAggregate,
@@ -232,6 +233,31 @@ def test_late_window_5m_buys_up_with_reason_code_and_edge():
     assert decision.reason_code == "late_window_high_confidence"
     assert decision.market_probability == 0.84
     assert decision.edge == pytest.approx(decision.estimated_probability - 0.84)
+
+
+def test_late_window_5m_uses_configured_return_band():
+    strategy = load_strategy(
+        "late_window_5m",
+        late_window=LateWindowSection(
+            min_seconds_remaining=20,
+            max_seconds_remaining=60,
+            min_expected_return=0.02,
+            max_expected_return=0.10,
+            min_confidence=0.80,
+        ),
+    )
+
+    decision = strategy.decide(
+        _context(
+            reference=100.0,
+            price=100.12,
+            now=datetime(2026, 5, 12, 21, 4, 20, tzinfo=UTC),
+            up_ask=0.82,
+        )
+    )
+
+    assert decision.action == DecisionAction.NO_TRADE
+    assert decision.reason_code == "return_out_of_range"
 
 
 def test_strategy_decision_includes_reason_code_and_edge_fields():

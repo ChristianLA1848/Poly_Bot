@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from polybot.config import RiskSection, StakingSection
+from polybot.config import LateWindowSection, RiskSection, StakingSection
 from polybot.models import Decision, DecisionAction, FeedAggregate, FeedPrice, OrderbookSnapshot
 from polybot.risk import RiskGate, RiskResult
 from polybot.staking import calculate_stake
@@ -75,6 +75,32 @@ def _decision(
     )
 
 
+def _late_window_decision(
+    *,
+    target_price: float = 0.92,
+    estimated_probability: float = 0.93,
+    confidence: float = 0.93,
+) -> Decision:
+    decision = _decision(
+        target_price=target_price,
+        estimated_probability=estimated_probability,
+        confidence=confidence,
+    )
+    return Decision(
+        strategy="late_window_5m",
+        action=decision.action,
+        market_id=decision.market_id,
+        token_id=decision.token_id,
+        target_price=decision.target_price,
+        estimated_probability=decision.estimated_probability,
+        confidence=decision.confidence,
+        expected_return=decision.expected_return,
+        max_slippage=decision.max_slippage,
+        reason=decision.reason,
+        created_at=decision.created_at,
+    )
+
+
 def _evaluate(
     *,
     config: RiskSection | None = None,
@@ -130,6 +156,38 @@ def test_risk_gate_allows_exact_thresholds_before_position_order_limits():
     )
 
     assert result.accepted is True
+
+
+def test_risk_gate_allows_late_window_trade_with_return_but_low_absolute_edge():
+    result = RiskGate(
+        _risk_config(),
+        LateWindowSection(min_expected_return=0.01, max_expected_return=0.10, min_confidence=0.80),
+    ).evaluate(
+        _late_window_decision(target_price=0.92, estimated_probability=0.93),
+        _feed(),
+        _book(),
+        today_pnl=0.0,
+        open_positions=0,
+        open_orders=0,
+    )
+
+    assert result == RiskResult(accepted=True, reason="accepted")
+
+
+def test_risk_gate_blocks_late_window_trade_when_return_is_too_low():
+    result = RiskGate(
+        _risk_config(),
+        LateWindowSection(min_expected_return=0.02, max_expected_return=0.10, min_confidence=0.80),
+    ).evaluate(
+        _late_window_decision(target_price=0.92, estimated_probability=0.93),
+        _feed(),
+        _book(),
+        today_pnl=0.0,
+        open_positions=0,
+        open_orders=0,
+    )
+
+    assert result == RiskResult(accepted=False, reason="expected return too low")
 
 
 def test_fixed_stake_is_capped():

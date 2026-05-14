@@ -630,7 +630,7 @@ async def test_bot_runner_blocks_unknown_trade_token_before_risk_and_execution(t
     execution = FakeExecution()
     monkeypatch.setattr(
         "polybot.bot.load_strategy",
-        lambda name: StaticStrategy(_trade_decision("unknown-token")),
+        lambda name, late_window=None: StaticStrategy(_trade_decision("unknown-token")),
     )
     runner = BotRunner(
         config=_config(max_spread=0.001),

@@ -81,7 +81,7 @@ dashboard_host = "127.0.0.1"
 dashboard_port = 8787
 
 [strategy]
-name = "baseline_momentum"  # baseline_momentum or late_window
+name = "baseline_momentum"  # baseline_momentum, late_window_5m, or trend_following
 
 [staking]
 mode = "fixed"              # fixed, fractional_kelly, confidence_tiering
@@ -98,9 +98,20 @@ max_feed_age_ms = 2500
 max_feed_deviation_bps = 20
 max_open_positions = 1
 max_open_orders = 2
+max_trades_per_event = 1
+max_event_exposure = 10.0
+
+[late_window]
+min_seconds_remaining = 20
+max_seconds_remaining = 60
+min_expected_return = 0.01
+max_expected_return = 0.10
+min_confidence = 0.80
 ```
 
 `max_feed_age_ms` is applied to the Chainlink RTDS payload timestamp. If the RTDS tick is older than this threshold, the risk gate treats the feed as stale and will not trade.
+
+For `late_window_5m`, the bot does not use the global `risk.min_edge` probability-gap rule. It uses the late-window band instead: expected return must be between `min_expected_return` and `max_expected_return`, and confidence must be at least `min_confidence`. Other risk checks such as spread, liquidity, feed freshness, event trade limit, and exposure still apply.
 
 Validate configuration:
 

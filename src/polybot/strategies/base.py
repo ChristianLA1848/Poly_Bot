@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Protocol
 
+from polybot.config import LateWindowSection
 from polybot.models import (
     Decision,
     FeedAggregate,
@@ -144,7 +145,7 @@ def strategy_supports_market(name: str, market_profile: str) -> bool:
     return market_profile in metadata.market_profiles
 
 
-def load_strategy(name: str) -> Strategy:
+def load_strategy(name: str, late_window: LateWindowSection | None = None) -> Strategy:
     normalized = normalize_strategy_name(name)
     if normalized == "baseline_momentum":
         from polybot.strategies.baseline_momentum import BaselineMomentumStrategy
@@ -153,7 +154,7 @@ def load_strategy(name: str) -> Strategy:
     if normalized == "late_window_5m":
         from polybot.strategies.late_window_5m import LateWindow5mStrategy
 
-        return LateWindow5mStrategy()
+        return LateWindow5mStrategy(late_window)
     if normalized == "trend_following":
         from polybot.strategies.trend_following import TrendFollowingStrategy
 

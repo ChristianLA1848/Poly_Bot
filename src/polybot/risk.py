@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from polybot.config import RiskSection
+from polybot.config import LateWindowSection, RiskSection
 from polybot.models import Decision, DecisionAction, FeedAggregate, OrderbookSnapshot
 
 
@@ -11,8 +11,13 @@ class RiskResult:
 
 
 class RiskGate:
-    def __init__(self, config: RiskSection) -> None:
+    def __init__(
+        self,
+        config: RiskSection,
+        late_window: LateWindowSection | None = None,
+    ) -> None:
         self.config = config
+        self.late_window = late_window or LateWindowSection()
 
     def evaluate(
         self,
@@ -38,8 +43,9 @@ class RiskGate:
         if min(book.bid_size, book.ask_size) < self.config.min_liquidity:
             return RiskResult(False, "liquidity too low")
 
-        if decision.estimated_probability - decision.target_price < self.config.min_edge:
-            return RiskResult(False, "edge too low")
+        probability_result = self._evaluate_probability(decision)
+        if not probability_result.accepted:
+            return probability_result
 
         if today_pnl <= -abs(self.config.max_daily_loss):
             return RiskResult(False, "daily loss limit hit")
@@ -50,4 +56,18 @@ class RiskGate:
         if open_orders >= self.config.max_open_orders:
             return RiskResult(False, "too many open orders")
 
+        return RiskResult(True, "accepted")
+
+    def _evaluate_probability(self, decision: Decision) -> RiskResult:
+        if decision.strategy == "late_window_5m":
+            if decision.expected_return < self.late_window.min_expected_return:
+                return RiskResult(False, "expected return too low")
+            if decision.expected_return > self.late_window.max_expected_return:
+                return RiskResult(False, "expected return too high")
+            if decision.confidence < self.late_window.min_confidence:
+                return RiskResult(False, "confidence too low")
+            return RiskResult(True, "accepted")
+
+        if decision.estimated_probability - decision.target_price < self.config.min_edge:
+            return RiskResult(False, "edge too low")
         return RiskResult(True, "accepted")
