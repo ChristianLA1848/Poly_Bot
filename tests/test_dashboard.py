@@ -194,6 +194,7 @@ def test_dashboard_root_contains_tabs_controls_and_settings(tmp_path):
     assert 'id="stop-bot"' in html
     assert 'id="btc-price"' in html
     assert 'id="target-price"' in html
+    assert 'id="event-countdown"' in html
     assert 'id="strategy-reason-code"' in html
     assert 'id="strategy-edge"' in html
     assert 'id="strategy-confidence"' in html
@@ -227,6 +228,7 @@ def test_dashboard_root_contains_german_label_translations(tmp_path):
     assert 'class="label-translation">Überwachung</span>' in html
     assert 'class="label-translation">Heutiger Gewinn/Verlust</span>' in html
     assert 'class="label-translation">Zielkurs</span>' in html
+    assert 'class="label-translation">Restlaufzeit des Events</span>' in html
     assert 'class="label-translation">Geschätzte Wahrscheinlichkeit</span>' in html
     assert 'class="label-translation">Bot-Steuerung</span>' in html
     assert 'class="label-translation">Marktstatus</span>' in html

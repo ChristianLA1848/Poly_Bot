@@ -4,6 +4,7 @@ const statusPill = dashboardDocument?.querySelector("#bot-status");
 const pnlValue = dashboardDocument?.querySelector("#pnl-value");
 const btcPrice = dashboardDocument?.querySelector("#btc-price");
 const targetPrice = dashboardDocument?.querySelector("#target-price");
+const eventCountdown = dashboardDocument?.querySelector("#event-countdown");
 const targetDelta = dashboardDocument?.querySelector("#target-delta");
 const strategyReasonCode = dashboardDocument?.querySelector("#strategy-reason-code");
 const strategyEdge = dashboardDocument?.querySelector("#strategy-edge");
@@ -62,6 +63,23 @@ function formatPercent(value) {
   }
 
   return `${(Number(value) * 100).toFixed(1)}%`;
+}
+
+function formatEventCountdown(endTime, nowTime) {
+  if (!endTime) {
+    return "-";
+  }
+
+  const endMs = Date.parse(endTime);
+  const nowMs = nowTime ? Date.parse(nowTime) : Date.now();
+  if (!Number.isFinite(endMs) || !Number.isFinite(nowMs)) {
+    return "-";
+  }
+
+  const totalSeconds = Math.max(0, Math.ceil((endMs - nowMs) / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
 function setRuntimeStatus(status) {
@@ -269,13 +287,14 @@ function renderEvents(events) {
   }
 }
 
-function renderMarketStatus(status) {
+function renderMarketStatus(status, snapshotTime) {
   const market = status || {};
   marketState.textContent = market.state || "unknown";
   marketMessage.textContent = market.message || "No market checked yet.";
   marketSlug.textContent = market.slug || "-";
   marketQuestion.textContent = market.question || "-";
   marketEndTime.textContent = market.end_time || "-";
+  setText(eventCountdown, formatEventCountdown(market.end_time, snapshotTime));
   marketAcceptingOrders.textContent =
     typeof market.accepting_orders === "boolean" ? String(market.accepting_orders) : "-";
   marketOrderRules.textContent =
@@ -402,7 +421,7 @@ async function refreshSnapshot() {
   pnlValue.textContent = formatCurrency(snapshot.today_pnl, true);
   renderStrategyOptions(snapshot.strategy_metadata);
   renderFeedStatus(snapshot.feed_status);
-  renderMarketStatus(snapshot.market_status);
+  renderMarketStatus(snapshot.market_status, snapshot.snapshot_time);
   renderSettings(snapshot.settings);
   const recentDecisions = snapshot.recent_decisions || [];
   renderStrategyMetrics(recentDecisions, snapshot);
@@ -421,7 +440,7 @@ async function loadSettings() {
 }
 
 if (typeof module !== "undefined") {
-  module.exports = { equityCurveSvg };
+  module.exports = { equityCurveSvg, formatEventCountdown };
 }
 
 if (dashboardDocument) {

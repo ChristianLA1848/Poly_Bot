@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 import json
 from pathlib import Path
 from typing import Any
@@ -33,6 +34,7 @@ def create_dashboard_app(
     @dashboard.get("/api/snapshot")
     def snapshot() -> dict[str, Any]:
         data = store.dashboard_snapshot()
+        data["snapshot_time"] = datetime.now(tz=UTC).isoformat()
         data.setdefault("bot_status", "ready")
         data.setdefault("today_pnl", 0.0)
         data["strategy_metadata"] = [

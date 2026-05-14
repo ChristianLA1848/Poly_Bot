@@ -83,3 +83,29 @@ if (!svg.includes("M 18.00") || !svg.includes("L 622.00")) {{
 """
 
     run_node(script)
+
+
+def test_format_event_countdown_uses_snapshot_time_and_end_time():
+    script = f"""
+const {{ formatEventCountdown }} = require("./{APP_JS}");
+const label = formatEventCountdown(
+  "2026-05-14T08:00:00+00:00",
+  "2026-05-14T07:59:41+00:00",
+);
+if (label !== "00:19") {{
+  throw new Error(`Expected 00:19, got: ${{label}}`);
+}}
+const expired = formatEventCountdown(
+  "2026-05-14T08:00:00+00:00",
+  "2026-05-14T08:00:01+00:00",
+);
+if (expired !== "00:00") {{
+  throw new Error(`Expected expired countdown at 00:00, got: ${{expired}}`);
+}}
+const missing = formatEventCountdown(null, "2026-05-14T08:00:01+00:00");
+if (missing !== "-") {{
+  throw new Error(`Expected missing countdown as -, got: ${{missing}}`);
+}}
+"""
+
+    run_node(script)
