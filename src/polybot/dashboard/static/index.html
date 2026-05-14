@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="de">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -26,7 +26,8 @@
           aria-controls="monitor-panel"
           data-tab-target="monitor"
         >
-          Monitor
+          <span>Monitor</span>
+          <span class="label-translation">Überwachung</span>
         </button>
         <button
           class="tab"
@@ -37,7 +38,8 @@
           aria-controls="settings-panel"
           data-tab-target="settings"
         >
-          Settings
+          <span>Settings</span>
+          <span class="label-translation">Einstellungen</span>
         </button>
         <button
           class="tab"
@@ -48,7 +50,8 @@
           aria-controls="analytics-panel"
           data-tab-target="analytics"
         >
-          Analytics
+          <span>Analytics</span>
+          <span class="label-translation">Auswertung</span>
         </button>
         <button
           class="tab"
@@ -59,7 +62,8 @@
           aria-controls="logs-panel"
           data-tab-target="logs"
         >
-          Logs
+          <span>Logs</span>
+          <span class="label-translation">Protokoll</span>
         </button>
       </nav>
 
@@ -72,54 +76,60 @@
       >
         <section class="metrics" aria-label="Bot metrics">
           <article class="metric">
-            <span>Status</span>
+            <span class="label-stack"><span>Status</span><span class="label-translation">Status</span></span>
             <strong id="status-value">ready</strong>
           </article>
           <article class="metric">
-            <span>Today P/L</span>
+            <span class="label-stack"><span>Today P/L</span><span class="label-translation">Heutiger Gewinn/Verlust</span></span>
             <strong id="pnl-value">$0.00</strong>
           </article>
           <article class="metric">
-            <span>BTC Price</span>
+            <span class="label-stack"><span>BTC Price</span><span class="label-translation">BTC-Kurs</span></span>
             <strong id="btc-price">-</strong>
           </article>
           <article class="metric">
-            <span>Target Price</span>
+            <span class="label-stack"><span>Target Price</span><span class="label-translation">Zielkurs</span></span>
             <strong id="target-price">-</strong>
           </article>
           <article class="metric">
-            <span>Delta</span>
+            <span class="label-stack"><span>Delta</span><span class="label-translation">Abweichung</span></span>
             <strong id="target-delta">-</strong>
           </article>
           <article class="metric">
-            <span>Reason</span>
+            <span class="label-stack"><span>Reason</span><span class="label-translation">Begründung</span></span>
             <strong id="strategy-reason-code">-</strong>
           </article>
           <article class="metric">
-            <span>Edge</span>
+            <span class="label-stack"><span>Edge</span><span class="label-translation">Rechnerischer Vorteil</span></span>
             <strong id="strategy-edge">-</strong>
           </article>
           <article class="metric">
-            <span>Confidence</span>
+            <span class="label-stack"><span>Confidence</span><span class="label-translation">Sicherheit</span></span>
             <strong id="strategy-confidence">-</strong>
           </article>
           <article class="metric">
-            <span>Estimated Probability</span>
+            <span class="label-stack"><span>Estimated Probability</span><span class="label-translation">Geschätzte Wahrscheinlichkeit</span></span>
             <strong id="strategy-estimated-probability">-</strong>
           </article>
           <article class="metric">
-            <span>Market Probability</span>
+            <span class="label-stack"><span>Market Probability</span><span class="label-translation">Marktwahrscheinlichkeit</span></span>
             <strong id="strategy-market-probability">-</strong>
           </article>
           <article class="metric">
-            <span>Compatibility</span>
+            <span class="label-stack"><span>Compatibility</span><span class="label-translation">Strategie-Eignung</span></span>
             <strong id="strategy-compatibility">-</strong>
           </article>
           <article class="metric controls">
-            <span>Bot Control</span>
+            <span class="label-stack"><span>Bot Control</span><span class="label-translation">Bot-Steuerung</span></span>
             <div class="button-row">
-              <button class="primary-button" type="button" id="start-bot">Start</button>
-              <button class="secondary-button" type="button" id="stop-bot">Stop</button>
+              <button class="primary-button" type="button" id="start-bot">
+                <span>Start</span>
+                <span class="label-translation">Starten</span>
+              </button>
+              <button class="secondary-button" type="button" id="stop-bot">
+                <span>Stop</span>
+                <span class="label-translation">Stoppen</span>
+              </button>
             </div>
           </article>
         </section>
@@ -127,32 +137,32 @@
         <section class="market-panel" aria-label="Market status">
           <article class="panel">
             <div class="panel-heading">
-              <h2>Market Status</h2>
+              <h2><span>Market Status</span><span class="label-translation">Marktstatus</span></h2>
               <span id="market-state">unknown</span>
             </div>
             <dl class="market-details">
               <div>
-                <dt>Message</dt>
+                <dt><span>Message</span><span class="label-translation">Meldung</span></dt>
                 <dd id="market-message">No market checked yet.</dd>
               </div>
               <div>
-                <dt>Slug</dt>
+                <dt><span>Slug</span><span class="label-translation">Event-Kennung</span></dt>
                 <dd id="market-slug">-</dd>
               </div>
               <div>
-                <dt>Question</dt>
+                <dt><span>Question</span><span class="label-translation">Marktfrage</span></dt>
                 <dd id="market-question">-</dd>
               </div>
               <div>
-                <dt>End Time</dt>
+                <dt><span>End Time</span><span class="label-translation">Endzeit</span></dt>
                 <dd id="market-end-time">-</dd>
               </div>
               <div>
-                <dt>Accepting Orders</dt>
+                <dt><span>Accepting Orders</span><span class="label-translation">Orders möglich</span></dt>
                 <dd id="market-accepting-orders">-</dd>
               </div>
               <div>
-                <dt>Tick / Min Size</dt>
+                <dt><span>Tick / Min Size</span><span class="label-translation">Tick / Mindestgröße</span></dt>
                 <dd id="market-order-rules">-</dd>
               </div>
             </dl>
@@ -169,18 +179,18 @@
       >
         <form class="settings-form" id="settings-form">
           <label>
-            <span>Bot Mode</span>
+            <span class="label-stack"><span>Bot Mode</span><span class="label-translation">Bot-Modus</span></span>
             <select name="bot.mode">
               <option value="paper">Paper</option>
               <option value="live">Live</option>
             </select>
           </label>
           <label>
-            <span>Cycle Seconds</span>
+            <span class="label-stack"><span>Cycle Seconds</span><span class="label-translation">Sekunden pro Zyklus</span></span>
             <input type="number" name="bot.cycle_seconds" min="0.01" step="0.01" />
           </label>
           <label>
-            <span>Strategy</span>
+            <span class="label-stack"><span>Strategy</span><span class="label-translation">Strategie</span></span>
             <select name="strategy.name">
               <option value="baseline_momentum">Baseline Momentum</option>
               <option value="late_window_5m">Late Window 5m</option>
@@ -188,7 +198,7 @@
             </select>
           </label>
           <label>
-            <span>Staking Mode</span>
+            <span class="label-stack"><span>Staking Mode</span><span class="label-translation">Einsatzmodus</span></span>
             <select name="staking.mode">
               <option value="fixed">Fixed</option>
               <option value="fractional_kelly">Fractional Kelly</option>
@@ -196,71 +206,74 @@
             </select>
           </label>
           <label>
-            <span>Fixed Stake</span>
+            <span class="label-stack"><span>Fixed Stake</span><span class="label-translation">Fester Einsatz</span></span>
             <input type="number" name="staking.fixed_stake" min="0" step="0.01" />
           </label>
           <label>
-            <span>Kelly Fraction</span>
+            <span class="label-stack"><span>Kelly Fraction</span><span class="label-translation">Kelly-Anteil</span></span>
             <input type="number" name="staking.kelly_fraction" min="0" max="1" step="0.01" />
           </label>
           <label>
-            <span>Max Stake</span>
+            <span class="label-stack"><span>Max Stake</span><span class="label-translation">Maximaler Einsatz</span></span>
             <input type="number" name="risk.max_stake" min="0.01" step="0.01" />
           </label>
           <label>
-            <span>Max Daily Loss</span>
+            <span class="label-stack"><span>Max Daily Loss</span><span class="label-translation">Maximaler Tagesverlust</span></span>
             <input type="number" name="risk.max_daily_loss" min="0.01" step="0.01" />
           </label>
           <label>
-            <span>Max Spread</span>
+            <span class="label-stack"><span>Max Spread</span><span class="label-translation">Maximaler Spread</span></span>
             <input type="number" name="risk.max_spread" min="0" step="0.001" />
           </label>
           <label>
-            <span>Min Liquidity</span>
+            <span class="label-stack"><span>Min Liquidity</span><span class="label-translation">Mindestliquidität</span></span>
             <input type="number" name="risk.min_liquidity" min="0.01" step="0.01" />
           </label>
           <label>
-            <span>Min Edge</span>
+            <span class="label-stack"><span>Min Edge</span><span class="label-translation">Mindestvorteil</span></span>
             <input type="number" name="risk.min_edge" min="0" step="0.001" />
           </label>
           <label>
-            <span>Max Feed Age</span>
+            <span class="label-stack"><span>Max Feed Age</span><span class="label-translation">Maximales Feed-Alter</span></span>
             <input type="number" name="risk.max_feed_age_ms" min="1" step="1" />
           </label>
           <label>
-            <span>Max Feed Deviation</span>
+            <span class="label-stack"><span>Max Feed Deviation</span><span class="label-translation">Maximale Feed-Abweichung</span></span>
             <input type="number" name="risk.max_feed_deviation_bps" min="0" step="1" />
           </label>
           <label>
-            <span>Max Open Positions</span>
+            <span class="label-stack"><span>Max Open Positions</span><span class="label-translation">Maximal offene Positionen</span></span>
             <input type="number" name="risk.max_open_positions" min="0" step="1" />
           </label>
           <label>
-            <span>Max Open Orders</span>
+            <span class="label-stack"><span>Max Open Orders</span><span class="label-translation">Maximal offene Orders</span></span>
             <input type="number" name="risk.max_open_orders" min="0" step="1" />
           </label>
           <label>
-            <span>Late Min Seconds</span>
+            <span class="label-stack"><span>Late Min Seconds</span><span class="label-translation">Spätfenster: min. Restsekunden</span></span>
             <input type="number" name="late_window.min_seconds_remaining" min="0" step="1" />
           </label>
           <label>
-            <span>Late Max Seconds</span>
+            <span class="label-stack"><span>Late Max Seconds</span><span class="label-translation">Spätfenster: max. Restsekunden</span></span>
             <input type="number" name="late_window.max_seconds_remaining" min="0" step="1" />
           </label>
           <label>
-            <span>Late Min Return</span>
+            <span class="label-stack"><span>Late Min Return</span><span class="label-translation">Spätfenster: min. Rendite</span></span>
             <input type="number" name="late_window.min_expected_return" min="0" step="0.001" />
           </label>
           <label>
-            <span>Late Max Return</span>
+            <span class="label-stack"><span>Late Max Return</span><span class="label-translation">Spätfenster: max. Rendite</span></span>
             <input type="number" name="late_window.max_expected_return" min="0" step="0.001" />
           </label>
           <label>
-            <span>Late Min Confidence</span>
+            <span class="label-stack"><span>Late Min Confidence</span><span class="label-translation">Spätfenster: min. Sicherheit</span></span>
             <input type="number" name="late_window.min_confidence" min="0" max="1" step="0.01" />
           </label>
           <div class="form-actions">
-            <button class="primary-button" type="submit">Save Settings</button>
+            <button class="primary-button" type="submit">
+              <span>Save Settings</span>
+              <span class="label-translation">Einstellungen speichern</span>
+            </button>
             <span id="settings-status" role="status"></span>
           </div>
         </form>
@@ -274,22 +287,22 @@
         data-tab-panel="analytics"
       >
         <section class="metrics" aria-label="Paper analytics metrics">
-          <article class="metric"><span>Paper P/L</span><strong id="paper-total-pnl">$0.00</strong></article>
-          <article class="metric"><span>Win Rate</span><strong id="paper-win-rate">0.0%</strong></article>
-          <article class="metric"><span>Trades</span><strong id="paper-trade-counts">0 / 0</strong></article>
-          <article class="metric"><span>Average Edge</span><strong id="paper-average-edge">-</strong></article>
+          <article class="metric"><span class="label-stack"><span>Paper P/L</span><span class="label-translation">Paper-Gewinn/Verlust</span></span><strong id="paper-total-pnl">$0.00</strong></article>
+          <article class="metric"><span class="label-stack"><span>Win Rate</span><span class="label-translation">Trefferquote</span></span><strong id="paper-win-rate">0.0%</strong></article>
+          <article class="metric"><span class="label-stack"><span>Trades</span><span class="label-translation">Trades</span></span><strong id="paper-trade-counts">0 / 0</strong></article>
+          <article class="metric"><span class="label-stack"><span>Average Edge</span><span class="label-translation">Durchschnittlicher Vorteil</span></span><strong id="paper-average-edge">-</strong></article>
         </section>
         <section class="grid">
           <article class="panel">
             <div class="panel-heading">
-              <h2>Equity Curve</h2>
+              <h2><span>Equity Curve</span><span class="label-translation">Kapitalverlauf</span></h2>
               <span id="equity-point-count">0</span>
             </div>
             <div class="chart" id="equity-curve" aria-label="Paper equity curve"></div>
           </article>
           <article class="panel">
             <div class="panel-heading">
-              <h2>Paper Trades</h2>
+              <h2><span>Paper Trades</span><span class="label-translation">Paper-Trades</span></h2>
               <span id="paper-trade-count">0</span>
             </div>
             <ul class="list" id="paper-trades"></ul>
@@ -307,7 +320,7 @@
         <section class="grid">
           <article class="panel">
             <div class="panel-heading">
-              <h2>Recent Decisions</h2>
+              <h2><span>Recent Decisions</span><span class="label-translation">Aktuelle Entscheidungen</span></h2>
               <span id="decision-count">0</span>
             </div>
             <ul class="list" id="decisions"></ul>
@@ -315,7 +328,7 @@
 
           <article class="panel">
             <div class="panel-heading">
-              <h2>Recent Events</h2>
+              <h2><span>Recent Events</span><span class="label-translation">Aktuelle Ereignisse</span></h2>
               <span id="event-count">0</span>
             </div>
             <ul class="list" id="events"></ul>

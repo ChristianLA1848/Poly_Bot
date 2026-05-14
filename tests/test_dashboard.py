@@ -214,3 +214,22 @@ def test_dashboard_root_contains_tabs_controls_and_settings(tmp_path):
     assert 'name="staking.mode"' in html
     assert 'name="risk.max_stake" min="0.01"' in html
     assert 'name="risk.max_feed_age_ms" min="1"' in html
+
+
+def test_dashboard_root_contains_german_label_translations(tmp_path):
+    store = StateStore(tmp_path / "bot.sqlite3")
+    store.initialize()
+    app = create_dashboard_app(store, dashboard_config_for_test(), control_service=None)
+    client = TestClient(app)
+
+    html = client.get("/").text
+
+    assert 'class="label-translation">Überwachung</span>' in html
+    assert 'class="label-translation">Heutiger Gewinn/Verlust</span>' in html
+    assert 'class="label-translation">Zielkurs</span>' in html
+    assert 'class="label-translation">Geschätzte Wahrscheinlichkeit</span>' in html
+    assert 'class="label-translation">Bot-Steuerung</span>' in html
+    assert 'class="label-translation">Marktstatus</span>' in html
+    assert 'class="label-translation">Einstellungen speichern</span>' in html
+    assert 'class="label-translation">Aktuelle Entscheidungen</span>' in html
+    assert 'class="label-translation">Aktuelle Ereignisse</span>' in html
