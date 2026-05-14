@@ -185,6 +185,8 @@ def test_dashboard_root_contains_tabs_controls_and_settings(tmp_path):
     assert 'data-tab-target="settings"' in html
     assert 'data-tab-target="analytics"' in html
     assert 'data-tab-target="logs"' in html
+    assert '/static/app.js?v=' in html
+    assert '/static/styles.css?v=' in html
     assert 'role="tablist"' in html
     assert 'role="tab"' in html
     assert 'role="tabpanel"' in html

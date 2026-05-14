@@ -109,3 +109,18 @@ if (missing !== "-") {{
 """
 
     run_node(script)
+
+
+def test_format_event_countdown_falls_back_to_browser_clock():
+    script = f"""
+const {{ formatEventCountdown }} = require("./{APP_JS}");
+const originalNow = Date.now;
+Date.now = () => Date.parse("2026-05-14T07:59:41+00:00");
+const label = formatEventCountdown("2026-05-14T08:00:00+00:00", null);
+Date.now = originalNow;
+if (label !== "00:19") {{
+  throw new Error(`Expected browser-clock fallback at 00:19, got: ${{label}}`);
+}}
+"""
+
+    run_node(script)
