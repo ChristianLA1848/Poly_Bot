@@ -6,7 +6,6 @@ from polybot.strategies.base import StrategyContext
 
 class LateWindow5mStrategy:
     name = "late_window_5m"
-    min_delta_pct = 0.10
 
     def __init__(self, settings: LateWindowSection | None = None) -> None:
         self.settings = settings or LateWindowSection()
@@ -41,7 +40,7 @@ class LateWindow5mStrategy:
                 reason="outside late window",
                 reason_code="too_early",
             )
-        if abs(snapshot.delta_pct) < self.min_delta_pct:
+        if abs(snapshot.delta_pct) < self.settings.min_delta_pct:
             return _no_trade(
                 self.name,
                 context,

@@ -130,6 +130,16 @@ def test_risk_config_accepts_event_trade_limits():
     assert config.risk.max_event_exposure == 12.5
 
 
+def test_late_window_config_accepts_min_delta_pct():
+    data = _valid_config_data()
+    data["late_window"] = {}
+    data["late_window"]["min_delta_pct"] = 0.015
+
+    config = BotConfig.model_validate(data)
+
+    assert config.late_window.min_delta_pct == 0.015
+
+
 def test_strategy_config_accepts_new_strategy_names():
     base = _valid_config_data()
 

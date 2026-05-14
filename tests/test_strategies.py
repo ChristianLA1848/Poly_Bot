@@ -260,6 +260,32 @@ def test_late_window_5m_uses_configured_return_band():
     assert decision.reason_code == "return_out_of_range"
 
 
+def test_late_window_5m_uses_configured_min_delta_pct():
+    strategy = load_strategy(
+        "late_window_5m",
+        late_window=LateWindowSection(
+            min_seconds_remaining=20,
+            max_seconds_remaining=240,
+            min_delta_pct=0.015,
+            min_expected_return=0.005,
+            max_expected_return=10.0,
+            min_confidence=0.75,
+        ),
+    )
+
+    decision = strategy.decide(
+        _context(
+            reference=100.0,
+            price=100.02,
+            now=datetime(2026, 5, 12, 21, 1, 30, tzinfo=UTC),
+            up_ask=0.60,
+        )
+    )
+
+    assert decision.action == DecisionAction.BUY_UP
+    assert decision.reason_code == "late_window_high_confidence"
+
+
 def test_strategy_decision_includes_reason_code_and_edge_fields():
     decision = load_strategy("baseline_momentum").decide(_context())
 

@@ -377,6 +377,9 @@ async def test_bot_runner_writes_audit_records_for_order_path(tmp_path):
     records = [json.loads(line) for line in audit_path.read_text(encoding="utf-8").splitlines()]
     assert [record["type"] for record in records] == ["decision", "order_result"]
     assert records[0]["payload"]["decision"]["action"] == "BUY_UP"
+    assert records[0]["payload"]["snapshot"]["seconds_remaining"] == 120.0
+    assert records[0]["payload"]["up_book"]["token_id"] == "up"
+    assert records[0]["payload"]["down_book"]["token_id"] == "down"
     assert records[1]["payload"]["result"]["status"] == "filled"
     assert records[1]["payload"]["stake"] == 5
 
@@ -413,6 +416,9 @@ async def test_bot_runner_writes_audit_records_for_risk_block_and_warning(tmp_pa
         "event",
     ]
     assert records[1]["payload"]["reason"] == "spread too high"
+    assert records[1]["payload"]["snapshot"]["market_profile"] == "btc_5m"
+    assert records[1]["payload"]["up_book"]["spread"] == 0.02
+    assert records[1]["payload"]["down_book"]["spread"] == 0.02
     assert records[2]["payload"]["event"]["level"] == "warning"
     assert records[2]["payload"]["event"]["message"] == "no feed aggregate available"
 

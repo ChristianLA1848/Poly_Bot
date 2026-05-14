@@ -217,6 +217,7 @@ def test_dashboard_root_contains_tabs_controls_and_settings(tmp_path):
     assert 'name="staking.mode"' in html
     assert 'name="risk.max_stake" min="0.01"' in html
     assert 'name="risk.max_feed_age_ms" min="1"' in html
+    assert 'name="late_window.min_delta_pct" min="0"' in html
 
 
 def test_dashboard_root_contains_german_label_translations(tmp_path):
@@ -235,5 +236,6 @@ def test_dashboard_root_contains_german_label_translations(tmp_path):
     assert 'class="label-translation">Bot-Steuerung</span>' in html
     assert 'class="label-translation">Marktstatus</span>' in html
     assert 'class="label-translation">Einstellungen speichern</span>' in html
+    assert 'class="label-translation">Spätfenster: min. Kursabweichung</span>' in html
     assert 'class="label-translation">Aktuelle Entscheidungen</span>' in html
     assert 'class="label-translation">Aktuelle Ereignisse</span>' in html

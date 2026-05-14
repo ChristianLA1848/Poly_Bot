@@ -36,6 +36,7 @@ stop_loss = 0.05
 [late_window]
 min_seconds_remaining = 20
 max_seconds_remaining = 60
+min_delta_pct = 0.10
 min_expected_return = 0.01
 max_expected_return = 0.10
 min_confidence = 0.80

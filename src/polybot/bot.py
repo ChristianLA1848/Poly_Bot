@@ -115,8 +115,11 @@ class BotRunner:
             "decision",
             {
                 "decision": decision,
+                "snapshot": context.snapshot,
                 "feed": self.latest_feed,
                 "market": market,
+                "up_book": up_book,
+                "down_book": down_book,
                 "created_at": now,
             },
         )
@@ -140,7 +143,10 @@ class BotRunner:
                 {
                     "reason": risk_result.reason,
                     "decision": decision,
+                    "snapshot": context.snapshot,
                     "feed": self.latest_feed,
+                    "up_book": up_book,
+                    "down_book": down_book,
                     "book": selected_book,
                     "created_at": now,
                 },

@@ -68,6 +68,7 @@ class ExitSection(BaseModel):
 class LateWindowSection(BaseModel):
     min_seconds_remaining: int = Field(default=20, ge=0)
     max_seconds_remaining: int = Field(default=60, ge=0)
+    min_delta_pct: float = Field(default=0.10, ge=0.0)
     min_expected_return: float = Field(default=0.01, ge=0.0)
     max_expected_return: float = Field(default=0.10, ge=0.0)
     min_confidence: float = Field(default=0.80, ge=0.0, le=1.0)
